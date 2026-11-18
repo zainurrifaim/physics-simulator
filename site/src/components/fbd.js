@@ -23,7 +23,7 @@ function arrow(x1, y1, x2, y2, cls, label, value) {
   return `<g class="fa fa-${cls}">
     <path d="M${x1} ${y1}L${bx.toFixed(1)} ${by.toFixed(1)}"/>
     <path class="fh" d="M${x2.toFixed(1)} ${y2.toFixed(1)}L${(bx - uy * 5).toFixed(1)} ${(by + ux * 5).toFixed(1)}L${(bx + uy * 5).toFixed(1)} ${(by - ux * 5).toFixed(1)}Z"/>
-    <text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${label.replace(/dy="4">([^<]*)<\/tspan>(?!<tspan dy="-4">)/g, 'dy="4">$1</tspan><tspan dy="-4"></tspan>')} = ${fmt(value, 0)} N</text>
+    <text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${label.replace(/dy="4">([^<]*)<\/tspan>(?!<tspan dy="-4">​)/g, 'dy="4">$1</tspan><tspan dy="-4">​</tspan>')} = ${fmt(value, 0)} N</text>
   </g>`;
 }
 

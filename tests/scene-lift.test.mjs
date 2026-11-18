@@ -143,3 +143,50 @@ test('lift scene: drag handles sit on the drawn landings; cameras and the ± pan
     if (p.top - p.bottom >= CLOSE) assert.equal(T.x, Bh.x);
   }
 });
+
+test('lift scene: free-body diagram of cabin + payload matches the phase and never overlaps the UI', async () => {
+  const { fbdForces, FBD_DESKTOP, FBD_PORTRAIT, TAGS, STATUS, LOAD_PANEL } = await import('../site/src/scenes/lift.js');
+  const { SAFETY_DECEL, sample } = await import('../site/src/physics/models.js');
+  for (const [name, p] of parameterSets(lesson)) {
+    const { r, states } = frames('lift', p, FRAMES);
+    for (const s of states) {
+      const F = fbdForces(p, r, s);
+      const up = F.filter((x) => x.dy < 0).reduce((a, x) => a + x.value, 0);
+      const down = F.filter((x) => x.dy > 0).reduce((a, x) => a + x.value, 0);
+      near(down, r.totalMass * 10, 1e-6, `${name}: F_g = m_total g`);
+      const net = up - down, tol = 1e-6 * down;
+      if (['descend', 'arrived', 'stopped', 'buffer'].includes(s.phase)) near(net, 0, tol, `${name} t=${s.t} ${s.phase}: ΣF`);
+      else if (s.phase === 'overspeed') assert.ok(net < 0, `${name} t=${s.t}: overspeed needs a net downward force`);
+      else if (s.phase === 'braking') near(net, r.totalMass * SAFETY_DECEL, tol, `${name}: braking ΣF = m·a`);
+      // ΣF has the sign of −m dv/dt (v is the downward speed)
+      if (['overspeed', 'braking'].includes(s.phase)) {
+        const later = sample('lift', p, r, s.t + 1e-4);
+        if (later.phase === s.phase) assert.ok(Math.sign(later.speed - s.speed) === -Math.sign(net), `${name} t=${s.t}: ΣF sign vs dv/dt`);
+      }
+      for (const x of F) assert.ok(x.len > 0 && x.len <= FBD_DESKTOP.maxLen, `${name}: arrow length`);
+    }
+    // one scale for every setup: the same force has the same length
+    const B = fbdForces(p, r, states[0]).find((x) => x.key === 'g');
+    if (B.scaled) near(B.len, B.value * FBD_DESKTOP.k, 1e-9, `${name}: scale`);
+  }
+  const p = lesson.preset;
+  const { r, states } = frames('lift', p, 2);
+  for (const [mode, panel] of [['desktop', FBD_DESKTOP], ['portrait', FBD_PORTRAIT]]) {
+    inside(panel, box(camera[mode]), `${mode}: FBD outside the camera`);
+    const [dx, dy] = loadOffset[mode];
+    const rects = { inset: INSET, status: STATUS, panel: { ...LOAD_PANEL, x: LOAD_PANEL.x + dx, y: LOAD_PANEL.y + dy } };
+    for (const m of ['desktop', 'portrait']) { const G0 = GAUGES[m]; rects[`gauges ${m}`] = { x: G0.x, y: G0.y - 18, w: G0.w, h: G0.dy + 52 }; }
+    if (mode === 'desktop') rects.tags = TAGS;
+    for (const [k, rect] of Object.entries(rects)) assert.ok(!overlap(panel, rect), `${mode}: FBD overlaps ${k}`);
+    for (const [, q] of parameterSets(lesson)) {
+      const g = geometry(q, r, states[0]);
+      assert.ok(!overlap(panel, g.shaft), `${mode}: FBD overlaps the shaft`);
+      for (const key of ['top', 'bottom']) {
+        const h = handle(key, q);
+        assert.ok(!overlap(panel, { x: h.x - 84, y: h.y - 31, w: 99, h: 46 }), `${mode}: FBD overlaps the ${key} handle`);
+      }
+    }
+  }
+  // the desktop FBD is not visible in portrait, the portrait one not on desktop
+  assert.ok(!overlap(FBD_DESKTOP, box(camera.portrait)) && !overlap(FBD_PORTRAIT, box(camera.desktop)));
+});

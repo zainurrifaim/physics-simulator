@@ -55,11 +55,27 @@ test('angkat: force arrows and status tags stay inside the frame and clear of th
     const { r, states } = frames('angkat', p, 40);
     for (const s of states) {
       const svg = render(p, r, s, fmt);
+      // scene arrows stay in the desktop frame; the portrait-only diagram strip lies below y = 384
       for (const m of svg.matchAll(/<path class="vec-head" d="M([\d.-]+) ([\d.-]+)/g)) {
-        assert.ok(Number(m[2]) <= 380 && Number(m[2]) >= 0, `${name} t=${s.t}: arrow tip at y=${m[2]}`);
+        const y = Number(m[2]);
+        assert.ok((y <= 380 && y >= 0) || (y >= 388 && y <= 488), `${name} t=${s.t}: arrow tip at y=${m[2]}`);
       }
       const plateTop = barPixelY(s.position) - 22.5;
       assert.ok(plateTop >= 124 + 11, `${name}: plates (top ${plateTop}) reach the status slot`);
+    }
+  }
+});
+
+test('angkat: the free-body diagram matches the model (F − F_g = m·a; only F_g in free fall; N on the floor)', async () => {
+  const { fbdForces } = await import('../site/src/scenes/angkat.js');
+  for (const [name, p] of parameterSets(lesson)) {
+    const { states } = frames('angkat', p, 120);
+    for (const s of states) {
+      const F = fbdForces(p, s);
+      const up = F.filter((x) => x.dy < 0).reduce((a, x) => a + x.value, 0);
+      const down = F.filter((x) => x.dy > 0).reduce((a, x) => a + x.value, 0);
+      assert.ok(Math.abs(up - down - p.mass * (s.acceleration ?? 0)) < 1e-6 * p.mass * 10, `${name} t=${s.t}: ΣF ≠ m·a`);
+      if (s.phase === 'drop') assert.deepEqual(F.map((x) => x.key), ['g'], `${name}: free fall has only F_g`);
     }
   }
 });

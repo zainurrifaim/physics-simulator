@@ -53,3 +53,4 @@
 .scene-svg .lift-status.warn rect { fill: var(--warn); stroke: none; }
 .scene-svg .lift-status.ok rect { fill: var(--good); stroke: none; }
 .scene-svg .lift-status.warn text, .scene-svg .lift-status.ok text { fill: #fff; }
+.scene-svg .lift-fbd .fbd-label { font-size: 9.5px; }

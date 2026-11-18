@@ -34,3 +34,7 @@
 .scene-svg .scale-bar { stroke: #4f4a3c; stroke-width: 1.5; fill: none; }
 .scene-svg .vec-force-text { fill: #a8461a; }
 .scene-svg .vec-velocity-text { fill: var(--velocity); }
+.scene-svg .fbd-slope { stroke: #6d9a64; stroke-width: 2; }
+.scene-svg .fbd-resultant .vec-line { stroke-dasharray: 0.14 0.09; stroke-width: 2.5; } /* arrow() uses pathLength = 1 */
+.scene-svg .fbd-resultant text { font-size: 10px; font-weight: 700; fill: var(--disp); }
+.scene-svg .fbd-legend-line { stroke: var(--disp); stroke-width: 2.5; stroke-dasharray: 5 3; }

@@ -7,6 +7,7 @@
 // at the hips, the head whips forward) until it reaches the dashboard.
 import { arrow, tag, svg, sub, vlen } from './draw.js';
 import { twoBone, BODY } from './rig.js';
+import { fbdPanel, fbdLayout } from './fbd-panel.js';
 import { DASH_GAP } from '../physics/models.js';
 
 export const PX_PER_M = 100;
@@ -223,51 +224,25 @@ function wheel(w, angle) {
  * from one point to ONE scale for every setup, so A and B can be compared; a force too long
  * for the panel is drawn dashed and marked "tidak berskala".
  */
-export const FBD = { x: 14, y: 92, w: 280, h: 84, k: 0.012, maxLen: 168 };
+export const FBD = { x: 14, y: 92, w: 280, h: 84, k: 0.012, maxLen: 168, cx: 200, cy: 38 };
 
 export function fbdForces(p, s) {
   const W = p.mass * 10;
   const list = [];
-  if (s.beltForce > 0) list.push({ key: 'sabuk', dx: -1, dy: 0, value: s.beltForce });
-  if (s.dashForce > 0) list.push({ key: 'dasbor', dx: -1, dy: 0, value: s.dashForce });
-  list.push({ key: 'N', dx: 0, dy: -1, value: W }, { key: 'g', dx: 0, dy: 1, value: W });
-  return list.map((F) => {
-    const raw = F.value * FBD.k;
-    return { ...F, len: Math.max(4, Math.min(raw, F.dx ? FBD.maxLen : 18)), scaled: raw <= (F.dx ? FBD.maxLen : 18) };
-  });
+  if (s.beltForce > 0) list.push({ key: 'sabuk', dx: -1, dy: 0, value: s.beltForce, label: `F${sub('sabuk')}` });
+  if (s.dashForce > 0) list.push({ key: 'dasbor', dx: -1, dy: 0, value: s.dashForce, label: `F${sub('dasbor')}` });
+  list.push({ key: 'N', dx: 0, dy: -1, value: W, label: 'N' }, { key: 'g', dx: 0, dy: 1, value: W, label: `F${sub('g')}` });
+  return fbdLayout(list, FBD);
 }
 
-function fbdPanel(p, r, s, f) {
-  const { x, y, w, h } = FBD;
-  const cx = x + 200, cy = y + 38;
-  const forces = fbdForces(p, s);
-  const W = p.mass * 10;
-  const arrows = forces.map((F) => {
-    const ex = cx + F.dx * F.len, ey = cy + F.dy * F.len;
-    const head = arrow(cx, cy, ex, ey, 'force', '');
-    const cls = F.scaled ? '' : ' clamped';
-    if (F.dx) {
-      const name = F.key === 'sabuk' ? `F${sub('sabuk')}` : `F${sub('dasbor')}`;
-      return `<g class="fbd-h${cls}">${head}<text class="fbd-label" x="${r1(cx - 10)}" y="${cy - 8}" text-anchor="end">${name} = ${f(F.value, 0)} N${F.scaled ? '' : ' (tidak berskala)'}</text></g>`;
-    }
-    return `${head}<text class="fbd-label" x="${cx + 9}" y="${F.key === 'N' ? cy - 6 : cy + 14}">${F.key === 'N' ? 'N' : `F${sub('g')}`} = ${f(W, 0)} N</text>`;
-  }).join('');
-  const sum = forces.filter((F) => F.dx).reduce((a, F) => a + F.value, 0);
-  const torn = !s.beltIntact;
-  const [n1, n2] = s.phase === 'ready' ? ['Sebelum menabrak: N = F' + sub('g') + ', ΣF = 0', 'dummy bergerak bersama mobil']
+function fbdNotes(p, r, s, f) {
+  const sum = fbdForces(p, s).filter((F) => F.dx).reduce((a, F) => a + F.value, 0);
+  return s.phase === 'ready' ? [`Sebelum menabrak: N = F${sub('g')}, ΣF = 0`, 'dummy bergerak bersama mobil']
     : s.phase === 'braking' ? [`ΣF = F${sub('sabuk')} = m · |a| = ${f(p.mass)} × ${f(Math.abs(r.acceleration), 0)} = ${f(sum, 0)} N`, 'ke belakang → dummy melambat bersama mobil']
-    : s.phase === 'stopped' ? ['Diam: N = F' + sub('g') + ', ΣF = 0', 'sabuk tidak lagi menarik']
+    : s.phase === 'stopped' ? [`Diam: N = F${sub('g')}, ΣF = 0`, 'sabuk tidak lagi menarik']
     : s.phase === 'torn' ? ['Sabuk robek: tidak ada gaya mendatar', `→ dummy tetap ${f(r.v0, 1)} m/s, mobil melambat`]
     : s.phase === 'impact' ? [`Membentur dasbor · kecepatan relatif ${f(r.impactSpeed, 1)} m/s`, s.dashForce > 0 ? `Δp = m · v = ${f(r.impulse, 0)} N·s; lalu dasbor mendorong` : `Δp = m · v = ${f(r.impulse, 0)} N·s · kini diam: ΣF = 0`]
     : ['', ''];
-  return `<g class="fbd-panel${torn ? ' torn' : ''}">
-    <rect class="fbd-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>
-    <text class="fbd-title" x="${x + 8}" y="${y + 14}">Diagram gaya pada dummy (m = ${f(p.mass)} kg)</text>
-    ${arrows}
-    <circle class="fbd-dot" cx="${cx}" cy="${cy}" r="4"/>
-    <text class="fbd-note" x="${x + 8}" y="${y + h - 21}">${n1}</text>
-    <text class="fbd-note" x="${x + 8}" y="${y + h - 6}">${n2}</text>
-  </g>`;
 }
 
 function readout(p, r, s, f) {
@@ -394,7 +369,7 @@ export function render(p, r, s, f) {
       ${burst}
     </g>
     ${zone}
-    ${fbdPanel(p, r, s, f)}
+    ${fbdPanel({ ...FBD, title: `Diagram gaya pada dummy (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, r, s, f), f, s.beltIntact ? '' : 'warn')}
     <g class="layer layer-labels">
       ${readout(p, r, s, f)}
       ${status}

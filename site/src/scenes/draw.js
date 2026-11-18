@@ -7,8 +7,8 @@ export const H = 380;
 
 const n = (v) => Math.round(v * 10) / 10;
 
-/** Subscript inside SVG <text>. */
-export const sub = (t) => `<tspan class="sub" dy="4">${t}</tspan><tspan dy="-4"></tspan>`;
+/** Subscript inside SVG <text>. The reset tspan holds a zero-width space: browsers ignore dy on an empty tspan. */
+export const sub = (t) => `<tspan class="sub" dy="4">${t}</tspan><tspan dy="-4">​</tspan>`;
 
 /** Arrow with a polygon head (no <marker>, so it survives hidden/duplicated SVGs). */
 export function arrow(x1, y1, x2, y2, kind, label, { labelSide = 'right', dashed = false } = {}) {

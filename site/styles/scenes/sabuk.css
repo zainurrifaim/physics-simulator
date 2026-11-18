@@ -46,12 +46,3 @@
 .scene-svg .readout .ro-bar.force { fill: var(--force); }
 .scene-svg .readout .ro-bar.warn { fill: var(--warn); }
 .scene-svg .readout .ro-limit { stroke: var(--warn); stroke-width: 2; }
-
-/* free-body diagram panel */
-.scene-svg .fbd-title { font-size: 11px; font-weight: 700; fill: var(--text, #222); }
-.scene-svg .fbd-label { font-size: 10px; font-weight: 700; fill: var(--force, #c4501f); }
-.scene-svg .fbd-note { font-size: 10px; fill: var(--text, #333); }
-.scene-svg .fbd-panel.torn .fbd-note { fill: #b3361f; }
-.scene-svg .fbd-dot { fill: var(--text, #222); }
-.scene-svg .fbd-h.clamped .vec-line { stroke-dasharray: 5 4; }
-.scene-svg .fbd-panel .fbd-bg { fill: rgba(255, 255, 255, 0.92); stroke: var(--line-strong); }

@@ -7,8 +7,10 @@
 //   'timeout' time window over; crate stays at r.reached below the target (red gap band)
 //   'stall'   load above the rated capacity; crate stays on the ground, cable taut
 // Geometry helpers are exported so tests check exactly what is drawn.
-import { arrow, tag, plant, svg, sub } from './draw.js';
+import { arrow, tag, plant, svg } from './draw.js';
 import { sig } from '../format.js';
+import { fbdLayout } from './fbd-panel.js';
+import { G } from '../physics/models.js';
 
 export const GROUND = 345;
 export const PX_PER_M = 7.5;
@@ -24,7 +26,16 @@ const BLOCK_H = 9;
 const HOOK_H = 6;
 const FORCE_X = HOOK_X + 38;        // force vectors right of the widest crate
 const GAUGE = { x: 232, y: 48, w: 156, h: 58 };   // clear of the handle label at h = 30 m (x ≤ ~225)
-const STATUS_RIGHT = HOOK_X - 40;  // right edge of status tags, clear of the s arrow (x = HOOK_X − 32)
+const STATUS_RIGHT = HOOK_X - 50;  // right edge of status tags, clear of the s arrow
+const STATUS_Y = 274;              // status tags sit below the free-body panel, above the ± panel (y 308)
+export const S_ARROW_X = HOOK_X - 30;
+/**
+ * Free-body diagram of the crate, always visible, same rect in both cameras: right of the
+ * handle label (x ≤ ~225), below the gauge (y ≤ 106), left of the crate column (x ≥ 440),
+ * above the status tags. One scale for every setup: 2 000 N (problem A) = 12 px; anything
+ * above 6 kN is drawn at maxLen, dashed, "tidak berskala".
+ */
+export const FBD = { x: 230, y: 112, w: 204, h: 132, k: 0.006, maxLen: 36, cx: 26, cy: 64 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -124,6 +135,74 @@ function load(g, phase) {
   </g>`;
 }
 
+/**
+ * Forces on the crate for a sampled state (laid out on the FBD scale). The crate never
+ * accelerates in this model (constant speed or at rest), so Σ up = Σ down in every phase.
+ *   ready   on the ground, hoist not pulling yet: N = F_g
+ *   lift / arrived / timeout   hanging on the cable: T = F_g
+ *   stall   T_maks (rated pull) + N = F_g, crate stays on the ground
+ */
+export function fbdForces(p, s) {
+  const W = p.mass * G;
+  const down = { key: 'g', label: 'F_{g}', value: W, dx: 0, dy: 1 };
+  let list;
+  if (s.phase === 'stall') {
+    const T = p.capacity * G;
+    list = [{ key: 'Tmaks', label: 'T_{maks}', value: T, dx: 0, dy: -1, ox: -6 }, { key: 'N', label: 'N', value: W - T, dx: 0, dy: -1, ox: 6 }, down];
+  } else if (s.phase === 'ready') {
+    list = [{ key: 'N', label: 'N', value: W, dx: 0, dy: -1 }, down];
+  } else {
+    list = [{ key: 'T', label: 'T', value: W, dx: 0, dy: -1 }, down];
+  }
+  return fbdLayout(list, FBD);
+}
+
+/**
+ * Subscripts written as X_{sub}: the text after a subscript goes in a tspan that shifts back
+ * up (an empty tspan's dy is ignored by browsers, which made the rest of the line drift down).
+ */
+const subs = (text) => text.replace(/_{([^}]+)}([^_]*)/g, (m, a, rest) => `<tspan class="sub" dy="4">${a}</tspan><tspan dy="-4">${rest}</tspan>`);
+
+function fbdNotes(p, r, s, f) {
+  const Fg = 'F_{g}';
+  switch (s.phase) {
+    case 'ready': return [`Diam di tanah: N = ${Fg}`, 'tali belum menarik → ΣF = 0'];
+    case 'lift': return ['Naik, kecepatan tetap → ΣF = 0', `T = ${Fg} (tegangan tali = berat)`];
+    case 'arrived': return [`Berhenti di ${f(p.height)} m, ditahan rem`, `T = ${Fg} → ΣF = 0`];
+    case 'timeout': return [`Waktu habis: ditahan rem di ${reachedText(r.reached, p.height, f)} m`, `T = ${Fg} → ΣF = 0`];
+    case 'stall': return [`T_{maks} &lt; ${Fg}: peti tidak terangkat`, `T_{maks} + N = ${Fg} → ΣF = 0, tetap diam`];
+    default: return ['', ''];
+  }
+}
+
+/**
+ * Same look as the shared fbdPanel (fbd-* classes), but labels sit in one column right of the
+ * arrows so the two upward forces of a stall never overlap, and values print in kN.
+ */
+function fbd(p, r, s, f) {
+  const { x, y, w, h, cx: dx0, cy: dy0 } = FBD;
+  const cx = x + dx0, cy = y + dy0;
+  const laid = fbdForces(p, s);
+  const kN = (v) => `${f(v / 1000, v < 10000 ? 2 : 1)} kN`;
+  let upRow = 0;
+  const arrows = laid.map((F) => {
+    const x0 = cx + (F.ox ?? 0);
+    const ty = F.dy < 0 ? cy - 4 - 13 * upRow++ : cy + 16;
+    const text = subs(`${F.label} = ${kN(F.value)}${F.scaled ? '' : ' (tidak berskala)'}`);
+    return `<g class="fbd-f${F.scaled ? '' : ' clamped'}">${arrow(x0, cy, x0, cy + F.dy * F.len, 'force', '')}<text class="fbd-label" x="${cx + 16}" y="${r1(ty)}">${text}</text></g>`;
+  }).join('');
+  const [n1, n2] = fbdNotes(p, r, s, f).map(subs);
+  const warn = s.phase === 'stall' || s.phase === 'timeout';
+  return `<g class="fbd-panel dk-fbd${warn ? ' warn' : ''}">
+    <rect class="fbd-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>
+    <text class="fbd-title" x="${x + 8}" y="${y + 14}">Diagram gaya peti (m = ${f(p.mass)} kg)</text>
+    ${arrows}
+    <circle class="fbd-dot" cx="${cx}" cy="${cy}" r="4"/>
+    <text class="fbd-note" x="${x + 8}" y="${y + h - 21}">${n1}</text>
+    <text class="fbd-note" x="${x + 8}" y="${y + h - 6}">${n2}</text>
+  </g>`;
+}
+
 /** Live readout: power used vs rated, speed and the requested time window. */
 function gauge(p, r, s, f) {
   const { x, y, w, h } = GAUGE;
@@ -151,7 +230,7 @@ export function render(p, r, s, f) {
   const { crate, targetY } = g;
   const cy = crate.y + crate.h / 2;
   const right = STATUS_RIGHT;
-  const statusY = clamp(targetY - 18, 124, 270);
+  const statusY = STATUS_Y;
 
   let status = '';
   let gap = '';
@@ -160,25 +239,30 @@ export function render(p, r, s, f) {
       <path class="dk-reached" d="M${HOOK_X - 34} ${r1(g.reachedY)}H${HOOK_X + 34}"/>`;
     status = tagRight(right, statusY, `${f(p.time)} s habis · baru ${reachedText(r.reached, p.height, f)} m`, 'warn');
   } else if (s.phase === 'stall') {
-    status = tagRight(right, 248, 'Melebihi kapasitas', 'warn') + tagRight(right, 274, `${f(p.mass)} kg &gt; ${f(p.capacity)} kg`);
+    status = tagRight(right, STATUS_Y - 10, 'Melebihi kapasitas', 'warn') + tagRight(right, STATUS_Y + 16, `${f(p.mass)} kg &gt; ${f(p.capacity)} kg`);
   } else if (s.phase === 'arrived') {
     status = tagRight(right, statusY, `Sampai ${f(p.height)} m dalam ${f(p.time)} s`, 'ok');
   }
 
   // Free-body vectors on the crate. Lengths share one reference (the weight) so T + N = Fg is visible.
   // Labels are placed separately so a tiny T (e.g. 5 kN of 100 kN) still has a readable label.
+  // The same forces as the FBD, on the crate itself: upward forces stacked tip to tail
+  // (lengths relative to the weight) so T + N = F_g is visible; labels kept ≥ 15 px apart.
   const len = Math.max(22, Math.min(56, 376 - cy));
-  const tLen = Math.max(4, len * (s.tension / r.weight));
-  const nForce = r.weight - s.tension;
-  const nLen = nForce > 0 ? Math.max(4, len - tLen) : 0;
-  const tY = cy - tLen / 2 + 4;
-  const nY = Math.min(cy - tLen - nLen / 2 + 4, tY - 15);
+  const ups = fbdForces(p, s).filter((F) => F.dy < 0);
   const label = (y, text) => `<g class="vec vec-force"><text class="vec-label" x="${FORCE_X + 10}" y="${r1(y)}">${text}</text></g>`;
+  let base = cy, lastY = Infinity;
+  const upSvg = ups.map((F) => {
+    const l = Math.max(4, len * (F.value / r.weight));
+    const ly = Math.min(base - l / 2 + 4, lastY - 15);
+    const out = arrow(FORCE_X, base, FORCE_X, base - l, 'force', '') + label(ly, subs(`${F.key === 'Tmaks' ? 'T' : F.label} = ${forceText(F.value, f)}`));
+    base -= l; lastY = ly;
+    return out;
+  }).join('');
   const forces = `
       <circle class="vec-dot" cx="${FORCE_X}" cy="${r1(cy)}" r="4"/>
-      ${arrow(FORCE_X, cy, FORCE_X, cy - tLen, 'force', '')}${label(tY, `T = ${forceText(s.tension, f)}`)}
-      ${nLen > 0 ? arrow(FORCE_X, cy - tLen, FORCE_X, cy - tLen - nLen, 'force', '') + label(nY, `N = ${forceText(nForce, f)}`) : ''}
-      ${arrow(FORCE_X, cy, FORCE_X, cy + len, 'force', '')}${label(cy + len / 2 + 4, `F${sub('g')} = ${forceText(r.weight, f)}`)}`;
+      ${upSvg}
+      ${arrow(FORCE_X, cy, FORCE_X, cy + len, 'force', '')}${label(cy + len / 2 + 4, subs(`F_{g} = ${forceText(r.weight, f)}`))}`;
 
   return svg(
     `
@@ -193,13 +277,14 @@ export function render(p, r, s, f) {
     ${load(g, s.phase)}
     ${gauge(p, r, s, f)}
     ${status}
+    ${fbd(p, r, s, f)}
     <g class="layer layer-labels">
       ${dim(DIM_X, targetY, GROUND)}
     </g>
     <g class="layer layer-forces">${forces}
     </g>
     <g class="layer layer-motion">
-      ${s.position > 0 ? arrow(HOOK_X - 32, GROUND, HOOK_X - 32, crateBottomY(s.position), 'disp', 's', { labelSide: 'left' }) : ''}
+      ${s.position > 0 ? arrow(S_ARROW_X, GROUND, S_ARROW_X, crateBottomY(s.position), 'disp', 's', { labelSide: 'center' }) : ''}
     </g>
   `,
     `Derek mengangkat kotak ${f(p.mass)} kilogram setinggi ${f(p.height)} meter`

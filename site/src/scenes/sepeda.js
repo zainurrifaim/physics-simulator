@@ -13,7 +13,8 @@
 // Everything drawn comes from layout()/geometry(), which tests check directly.
 import { arrow, dimV, tag, svg, sub } from './draw.js';
 import { twoBone, BODY } from './rig.js';
-import { sample, solve } from '../physics/models.js';
+import { sample, solve, G } from '../physics/models.js';
+import { fbdPanel } from './fbd-panel.js';
 
 export const BIKE_K = 40;          // px per metre for the (enlarged) bike and rider
 export const GROUND_Y = 326;       // flat ground at the foot of the hill
@@ -24,7 +25,13 @@ export const STROBE = 8;           // stroboscope: number of equal time interval
 export const FORCE_K = 0.04;       // px per newton (same for every setup: 800 N = 32 px)
 export const V_K = 90 / Math.sqrt(2 * 10 * 150); // px per m/s (90 px at the fastest possible 54,8 m/s)
 export const PANEL = { x0: 380, y0: 0, x1: 560, y1: 116 }; // info panel (tags, energy, legend)
-export const VIEW = { x: 40, y: 0, w: 520, h: 380 };
+export const VIEW = { x: 40, y: 0, w: 520, h: 380 };   // the scene itself (slope, bike, labels)
+/**
+ * Free-body diagram of rider + bike: a strip under the ground, inside both cameras and clear of
+ * the whole scene. One scale for every setup: 0,03 px/N (800 N = 24 px, 1 600 N = 48 px,
+ * 2 000 N = 60 px), so A and B differ visibly; nothing in the slider range exceeds maxLen.
+ */
+export const FBD = { x: 44, y: 386, w: 512, h: 142, k: 0.03, maxLen: 62, cx: 360, cy: 76 };
 const V_INSET = 9;                 // velocity arrow: px inside the slope line
 const DEPTH = { vLabel: 25, fgLabel: 39, lLabel: 58, lHandle: 64, lHandleOut: 175 };
 
@@ -365,6 +372,7 @@ export function render(p, r, s, f) {
     <rect class="ground" x="0" y="${GROUND_Y}" width="600" height="${380 - GROUND_Y}"/>
     <path class="slope-line track" d="M0 ${n1(top.y)}H${n1(top.x)}L${n1(finish.x)} ${GROUND_Y}H600"/>
     <path class="slope-mark" d="${line(add(top, n, 6), add(top, n, -6))}${line(add(finish, n, 6), add(finish, n, -6))}"/>
+    ${fbdSvg(p, r, f)}
     <g class="layer layer-motion strobe">${ghostSvg}${ghostDots}</g>
     ${drawBike(g)}
     <g class="layer layer-labels">
@@ -402,9 +410,55 @@ export function render(p, r, s, f) {
   );
 }
 
-// Content always lies in x 40…560 (slope, bike, labels, handles, info panel), so both cameras
-// crop the empty side margins; on phones that makes every label ≈ 15 % larger.
-export const camera = { desktop: `${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`, portrait: `${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}` };
+// Content always lies in x 40…560 (slope, bike, labels, handles, info panel) with the free-body
+// diagram strip under the ground, so both cameras crop the empty side margins (labels ≈ 15 %
+// larger on phones) and reach down to include the diagram.
+// + 24 below the panel: room for the live readout line the workspace overlays at the figure's bottom-left
+const CAMERA = `${VIEW.x} ${VIEW.y} ${VIEW.w} ${FBD.y + FBD.h + 24 - VIEW.y}`;
+export const camera = { desktop: CAMERA, portrait: CAMERA };
+
+// ---------------------------------------------------------------- free-body diagram
+
+const SUB_G = sub('g');
+
+/**
+ * Forces on rider + bike (the same in every frame of a ride): weight straight down and the
+ * normal force perpendicular to the slope, outward. Unit directions in SVG coordinates.
+ */
+export function fbdForces(p, r) {
+  const L = layout(p);
+  return [
+    { key: 'N', value: r.normal, dx: L.n.x, dy: L.n.y, label: 'N', labelPos: 'tip' },
+    { key: 'g', value: p.mass * G, dx: 0, dy: 1, label: `F${SUB_G}`, labelPos: 'left' },
+  ];
+}
+
+/** Resultant of the forces: m g sin θ along the slope, downhill (exported for tests). */
+export function fbdResultant(p, r) {
+  const sum = fbdForces(p, r).reduce((a, F) => ({ x: a.x + F.dx * F.value, y: a.y + F.dy * F.value }), { x: 0, y: 0 });
+  return { ...sum, value: Math.hypot(sum.x, sum.y) };
+}
+
+function fbdSvg(p, r, f) {
+  const L = layout(p), { u } = L;
+  const cx = FBD.x + FBD.cx, cy = FBD.y + FBD.cy;
+  const half = 40;
+  const slope = `<path class="fbd-slope" d="M${n1(cx - u.x * half)} ${n1(cy - u.y * half)}L${n1(cx + u.x * half)} ${n1(cy + u.y * half)}"/>`;
+  // ΣF is drawn dashed, 5 px outside the slope line so it never hides N, F_g or the slope;
+  // a legend line (left, above the notes) says it is the resultant, not another force
+  const sum = fbdResultant(p, r), len = sum.value * FBD.k;
+  const from = { x: cx + L.n.x * 5, y: cy + L.n.y * 5 }, tip = { x: from.x + u.x * len, y: from.y + u.y * len };
+  const lx = FBD.x + 8, ly = FBD.y + FBD.h - 36;
+  const resultant = (len >= 2 ? `<g class="fbd-resultant">${arrow(from.x, from.y, tip.x, tip.y, 'disp', '')}</g>` : '')
+    + `<g class="fbd-resultant legend"><path class="fbd-legend-line" d="M${lx} ${ly - 4}h22"/><text x="${lx + 28}" y="${ly}">ΣF = resultan (jumlah gaya, bukan gaya baru)</text></g>`;
+  const a = r.acceleration;
+  return fbdPanel(
+    { ...FBD, title: `Diagram gaya: pengendara + sepeda (m = ${f(p.mass)} kg)`, extra: slope + resultant },
+    fbdForces(p, r),
+    [`ΣF = m g sin θ = ${f(p.mass * a, 0)} N sepanjang lereng`, `→ a = g sin θ = ${f(a, 2)} m/s² (massa saling menghilangkan)`],
+    f,
+  );
+}
 
 /** Drag handle for an interactive parameter, in scene coordinates (on the drawn geometry). */
 export function handle(key, p, portrait = false) {
@@ -440,7 +494,7 @@ function handleBoxes(h, chars) {
 /** Everything the ± panel must not cover, over the whole ride (exported for tests). */
 export function sceneMarks(p, r, count = 32) {
   const L = layout(p);
-  const marks = [box(PANEL.x0, PANEL.y0, PANEL.x1, PANEL.y1)];
+  const marks = [box(PANEL.x0, PANEL.y0, PANEL.x1, PANEL.y1), box(FBD.x, FBD.y, FBD.x + FBD.w, FBD.y + FBD.h)];
   for (let i = 0; i <= 20; i++) marks.push(ptBox(add(L.top, L.u, (L.lengthPx * i) / 20), 3)); // the slope itself
   const st = labels(p, r, null, { layout: L });
   marks.push(textBox(st.h.x, st.h.y, `h = ${p.height} m`.length, 'end'), box(st.note.x, st.note.y - 11, st.note.x + 80, st.note.y + 30));

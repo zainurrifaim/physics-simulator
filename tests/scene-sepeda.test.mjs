@@ -4,11 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lessons } from '../site/src/lessons/index.js';
-import { solve, sample } from '../site/src/physics/models.js';
+import { solve, sample, G } from '../site/src/physics/models.js';
+import { fbdLayout } from '../site/src/scenes/fbd-panel.js';
 import { BODY } from '../site/src/scenes/rig.js';
 import {
   geometry, layout, handle, strobe, camera, render, loadOffset, loadPanelRect, sceneMarks, labels,
-  BIKE_K, GROUND_Y, ANKLE_OFFSET, STROBE, FORCE_K, V_K, PANEL, VIEW, HANDLE_X,
+  BIKE_K, GROUND_Y, ANKLE_OFFSET, STROBE, FORCE_K, V_K, PANEL, VIEW, HANDLE_X, FBD, fbdForces, fbdResultant,
 } from '../site/src/scenes/sepeda.js';
 import { fmt } from '../site/src/format.js';
 import { parameterSets, frames } from './helpers.mjs';
@@ -204,6 +205,54 @@ test('sepeda scene: renders cleanly and is a pure function of the state', () => 
       const a = render(p, r, s, fmt);
       assert.doesNotMatch(a, /NaN|undefined|Infinity|-0 J/, `${name} t=${t}`);
       assert.equal(a, render(p, r, s, fmt), `${name}: render not deterministic`);
+    }
+  }
+});
+
+test('sepeda free-body diagram: N ⟂ slope = m g cos θ, F_g vertical, ΣF = m g sin θ = m·a along the slope', () => {
+  for (const [name, p] of sets) {
+    const r = solve('sepeda', p), L = layout(p), forces = fbdForces(p, r);
+    const N = forces.find((F) => F.key === 'N'), W = forces.find((F) => F.key === 'g');
+    near(Math.hypot(N.dx, N.dy), 1, 1e-12, `${name} N unit`); near(Math.hypot(W.dx, W.dy), 1, 1e-12, `${name} Fg unit`);
+    near(N.dx * L.u.x + N.dy * L.u.y, 0, 1e-12, `${name} N ⟂ slope`);
+    assert.ok(N.dx * L.n.x + N.dy * L.n.y > 0.999, `${name}: N not outward`);
+    near(N.value, p.mass * G * Math.cos(Math.asin(p.height / p.length)), 1e-6 * p.mass * G, `${name} |N| = m g cos θ`);
+    assert.equal(W.dx, 0, `${name} Fg vertical`); assert.equal(W.dy, 1, `${name} Fg down`);
+    near(W.value, p.mass * G, 1e-9, `${name} |Fg| = m g`);
+    const sum = fbdResultant(p, r), along = sum.x * L.u.x + sum.y * L.u.y, across = sum.x * L.n.x + sum.y * L.n.y;
+    near(along, p.mass * G * p.height / p.length, 1e-6 * p.mass * G, `${name} ΣF along = m g sin θ`);
+    near(along, p.mass * r.acceleration, 1e-6 * p.mass * G, `${name} ΣF = m·a`);
+    near(across, 0, 1e-6 * p.mass * G, `${name} no net force across the slope`);
+    // one scale for every setup, true to scale over the whole slider range
+    for (const F of fbdLayout(forces, FBD)) { assert.ok(F.scaled, `${name}: ${F.key} not to scale`); near(F.len, Math.max(4, F.value * FBD.k), 1e-9, `${name} ${F.key} length`); }
+  }
+  const A = lesson.preset, B = { ...A, ...lesson.compare.B };
+  const lenW = (p) => fbdLayout(fbdForces(p, solve('sepeda', p)), FBD).find((F) => F.key === 'g').len;
+  near(lenW(B) / lenW(A), 2, 1e-9, 'B (2× mass) has a 2× longer F_g arrow');
+  assert.ok(lenW(B) - lenW(A) >= 20, 'A and B weight arrows differ visibly');
+});
+
+test('sepeda free-body diagram: always visible, inside both cameras, clear of everything else', () => {
+  const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const rect = { x0: FBD.x, y0: FBD.y, x1: FBD.x + FBD.w, y1: FBD.y + FBD.h };
+  for (const cam of [camera.desktop, camera.portrait]) {
+    const [cx, cy, cw, ch] = cam.split(' ').map(Number);
+    assert.ok(rect.x0 >= cx && rect.x1 <= cx + cw && rect.y0 >= cy && rect.y1 <= cy + ch, `diagram outside camera ${cam}`);
+  }
+  assert.ok(rect.y0 > 380, 'diagram must sit below the scene (ground ends at y = 380)');
+  for (const [name, p] of sets) {
+    const r = solve('sepeda', p);
+    const svg = render(p, r, sample('sepeda', p, r, r.duration / 2), fmt);
+    const at = svg.indexOf('class="fbd-panel'), layer = svg.indexOf('class="layer ');
+    assert.ok(at > 0 && at < layer, `${name}: diagram missing or inside a toggle layer`);
+    const others = sceneMarks(p, r).filter((m) => !(m.x0 === rect.x0 && m.y0 === rect.y0 && m.x1 === rect.x1 && m.y1 === rect.y1));
+    const hit = others.find((m) => overlaps(m, rect));
+    assert.equal(hit, undefined, `${name}: diagram overlaps ${JSON.stringify(hit)}`);
+    assert.ok(!overlaps(loadPanelRect(loadOffset(p)), rect), `${name}: ± panel covers the diagram`);
+    // the diagram's arrows and labels stay inside its box
+    for (const F of fbdLayout(fbdForces(p, r), FBD)) {
+      const tip = { x: FBD.x + FBD.cx + F.dx * F.len, y: FBD.y + FBD.cy + F.dy * F.len };
+      assert.ok(tip.x > rect.x0 && tip.x < rect.x1 && tip.y > rect.y0 + 16 && tip.y <= rect.y1 - 4, `${name}: ${F.key} arrow leaves the diagram`);
     }
   }
 });

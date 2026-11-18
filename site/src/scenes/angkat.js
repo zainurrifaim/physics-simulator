@@ -4,7 +4,37 @@
 // shows the bar stopping, the athlete releasing it and the bar falling to the floor.
 import { arrow, dimV, tag, plant, svg, sub, vlen } from './draw.js';
 import { lifterPose, drawFigure, LIFTER, LIFTER_GRIP_HALF as GRIP_HALF } from './rig.js';
-import { BAR_REST_HEIGHT, RELEASE_SECONDS } from '../physics/models.js';
+import { BAR_REST_HEIGHT, RELEASE_SECONDS, G } from '../physics/models.js';
+import { fbdPanel } from './fbd-panel.js';
+
+/**
+ * Free-body diagram of the barbell. Desktop: top-left (x < 150, outside the portrait view).
+ * Portrait: a strip under the floor (y > 384, outside the desktop view). Same scale in both.
+ */
+export const FBD_DESKTOP = { x: 6, y: 8, w: 142, h: 142, k: 0.08, maxLen: 44, cx: 34, cy: 66 };
+export const FBD_PORTRAIT = { x: 160, y: 388, w: 340, h: 100, k: 0.08, maxLen: 44, cx: 250, cy: 50 };
+
+/** Forces on the barbell in a sampled state (exported for tests). */
+export function fbdForces(p, s) {
+  const W = p.mass * G;
+  const list = [];
+  if (s.liftForce > 0) list.push({ key: 'F', dx: 0, dy: -1, value: s.liftForce, label: 'F' });
+  if (s.normal > 0) list.push({ key: 'N', dx: 0, dy: -1, value: s.normal, label: 'N' });
+  list.push({ key: 'g', dx: 0, dy: 1, value: W, label: 'F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan>' });
+  return list;
+}
+
+function fbdNotes(p, s, f) {
+  const ma = p.mass * (s.acceleration ?? 0);
+  if (s.phase === 'lift') {
+    if (Math.abs(ma) < 0.5) return ['F = F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan> → ΣF = 0', 'kecepatan tetap'];
+    return [`ΣF = F − F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan> = m·a = ${f(Math.abs(ma), 0)} N`, ma > 0 ? 'ke atas → makin cepat' : 'ke bawah → melambat'];
+  }
+  if (s.phase === 'hold') return ['F = F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan> → ΣF = 0', 'barbel diam di atas'];
+  if (s.phase === 'struggle') return ['F = F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan> → ΣF = 0', 'energi habis, ditahan'];
+  if (s.phase === 'drop') return ['Hanya F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan>: jatuh bebas', 'a = g = 10 m/s² ke bawah'];
+  return ['N = F<tspan class="sub" dy="4">g</tspan><tspan dy="-4">​</tspan> → ΣF = 0', 'diam di lantai'];
+}
 
 export const FLOOR = 340;
 export const PX_PER_M = 100;
@@ -63,6 +93,8 @@ export function render(p, r, s, f) {
     <path class="window" d="M40 250V110a45 45 0 0 1 90 0V250Z"/><path class="window-bar" d="M85 66V250M40 160H130"/>
     ${plant(150, FLOOR - 22, 1)}
     <rect class="mat" x="170" y="${FLOOR - 4}" width="260" height="8" rx="4"/>
+    ${fbdPanel({ ...FBD_DESKTOP, title: 'Diagram gaya barbel' }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}
+    ${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya pada barbel (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}
     ${figure}
     ${barbell}
     ${handsFront}
@@ -87,7 +119,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '150 0 360 380' };
+export const camera = { desktop: '0 0 600 380', portrait: '150 0 360 492' };
 
 /** ± load panel sits at the top, away from the lifter and the barbell on the floor. */
 export const loadOffset = { desktop: [150, -292], portrait: [4, -292] };

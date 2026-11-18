@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { lessons } from '../site/src/lessons/index.js';
 import { fmt } from '../site/src/format.js';
 import {
-  render, geometry, handle, camera, loadOffset, crateSize, crateBottomY, powerPair, reachedText,
+  render, geometry, handle, camera, loadOffset, crateSize, crateBottomY, powerPair, reachedText, fbdForces, FBD, S_ARROW_X,
   GROUND, PX_PER_M, TROLLEY_Y, JIB_BOTTOM, HOOK_X, DIM_X,
 } from '../site/src/scenes/derek.js';
 import { parameterSets, frames } from './helpers.mjs';
@@ -56,7 +56,7 @@ test('derek scene: crate, hook and cable stay physically possible in every frame
       const sArrow = svg.match(/<g class="vec vec-disp">\s*<path class="vec-line[^"]*" pathLength="1" d="M[\d.]+ ([\d.]+)L/);
       if (s.position > 0 && g.crate.bottom < GROUND - 2) assert.ok(sArrow && Number(sArrow[1]) === GROUND, `${at}: s arrow missing`);
       if (s.position === 0) assert.ok(!sArrow, `${at}: s arrow drawn for an unmoved crate`);
-      if (sArrow) assert.ok(svg.includes(`<path class="vec-head" d="M${HOOK_X - 32} ${r1(g.crate.bottom)}L`), `${at}: s arrow does not end at the crate`);
+      if (sArrow) assert.ok(svg.includes(`<path class="vec-head" d="M${S_ARROW_X} ${r1(g.crate.bottom)}L`), `${at}: s arrow does not end at the crate`);
       if (s.phase === 'arrived') assert.match(svg, /Sampai/, at);
       if (s.phase === 'timeout') {
         assert.match(svg, /habis/, at);
@@ -126,4 +126,68 @@ test('derek scene: readouts never print a failed run as a success', () => {
   assert.equal(reachedText(0.025, 15, fmt), '0,025');
   assert.equal(reachedText(14.9996, 15, fmt), '&lt; 15');
   assert.equal(reachedText(10, 15, fmt), '10');
+});
+
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+test('derek FBD: forces balance in every frame and match the phase', () => {
+  for (const [name, p] of sets) {
+    const { r, states } = frames('derek', p, FRAMES);
+    for (const s of states) {
+      const F = fbdForces(p, s);
+      const at = `${name} t=${s.t} ${s.phase}`;
+      const up = F.filter((x) => x.dy < 0).reduce((a, x) => a + x.value, 0);
+      const down = F.filter((x) => x.dy > 0).reduce((a, x) => a + x.value, 0);
+      assert.ok(Math.abs(up - down) <= 1e-9 * r.weight, `${at}: ΣF = ${up - down}`);
+      const keys = F.map((x) => x.key).sort().join(',');
+      const byKey = Object.fromEntries(F.map((x) => [x.key, x.value]));
+      assert.equal(byKey.g, r.weight, at);
+      if (s.phase === 'ready') assert.equal(keys, 'N,g', at);
+      else if (s.phase === 'stall') {
+        assert.equal(keys, 'N,Tmaks,g', at);
+        assert.equal(byKey.Tmaks, r.maxForce, at);
+        const [t, n] = ['Tmaks', 'N'].map((k) => F.find((x) => x.key === k));
+        assert.ok(t.ox !== n.ox, `${at}: the two upward arrows overlap`);
+      } else {
+        assert.equal(keys, 'T,g', at);
+        assert.equal(byKey.T, s.tension, `${at}: T differs from the model tension`);
+      }
+      for (const x of F) {
+        assert.ok(x.len <= FBD.maxLen + 1e-9, at);
+        if (x.scaled) assert.ok(Math.abs(x.len - Math.max(4, x.value * FBD.k)) < 1e-9, `${at}: ${x.key} not to scale`);
+      }
+    }
+  }
+  // problem A is drawn to scale and clearly visible
+  const A = lesson.preset;
+  const { states } = frames('derek', A, 4);
+  for (const x of fbdForces(A, states[2])) assert.ok(x.scaled && x.len >= 10, `A: ${x.key} ${x.len}px`);
+});
+
+test('derek FBD: panel stays clear of the gauge, handle, ± panel, crate column and status tags', () => {
+  const box = { x: FBD.x, y: FBD.y, w: FBD.w, h: FBD.h };
+  const gauge = { x: 232, y: 48, w: 156, h: 58 };
+  const crateColumn = { x: S_ARROW_X - 4, y: TROLLEY_Y, w: 600, h: GROUND };
+  assert.ok(!overlap(box, gauge), 'gauge');
+  assert.ok(!overlap(box, crateColumn), 'crate column / s arrow');
+  for (const portrait of [false, true]) {
+    const [cx, cy, cw, ch] = camera[portrait ? 'portrait' : 'desktop'].split(' ').map(Number);
+    assert.ok(box.x >= cx && box.x + box.w <= cx + cw && box.y >= cy && box.y + box.h <= cy + ch, 'FBD outside the camera');
+    const [dx, dy] = loadOffset[portrait ? 'portrait' : 'desktop'];
+    assert.ok(!overlap(box, { x: PANEL.x1 + dx, y: PANEL.y1 + dy, w: PANEL.x2 - PANEL.x1, h: PANEL.y2 - PANEL.y1 }), '± panel');
+  }
+  for (const [name, p] of sets) {
+    // handle circle (r 15) and its label "h 30 m" to the right (interaction.js, ≈ 64 px wide)
+    const h = handle('height', p);
+    assert.ok(!overlap(box, { x: h.x - 15, y: h.y - 33, w: 101, h: 48 }), `${name}: handle`);
+    const { r, states } = frames('derek', p, 6);
+    for (const s of states) {
+      const svg = render(p, r, s, fmt);
+      for (const m of svg.matchAll(/<g class="tag[^"]*"><rect x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)"/g)) {
+        const t = { x: +m[1], y: +m[2], w: +m[3], h: +m[4] };
+        assert.ok(!overlap(box, t), `${name} ${s.phase}: status tag under the FBD`);
+        assert.ok(!overlap(t, crateColumn) && !overlap(t, { x: 125, y: h.y - 33, w: 101, h: 48 }) && t.y + t.h < PANEL.y1, `${name} ${s.phase}: status tag collides`);
+      }
+    }
+  }
 });

@@ -5,6 +5,7 @@
 // Every moving part comes from the sampled state (`s.phase`, `s.position`, `s.speed`,
 // `s.drivePower`); the overload outcome (safety brake or pit buffer) comes from `r`.
 import { arrow, tag, svg, sub, vlen } from './draw.js';
+import { fbdPanel, fbdLayout } from './fbd-panel.js';
 import { lifterPose, drawFigure, BODY } from './rig.js';
 import { G, OVERSPEED_TRIP, SAFETY_DECEL } from '../physics/models.js';
 
@@ -31,6 +32,8 @@ const BLOCK_GAP = 0.012;              // m
 const BLOCK_COLS = 4;
 const PASSENGER_X = 0.36;             // m from the cabin's left outer wall
 
+const sb = (t) => `<tspan class="sub" dy="4">${t}</tspan><tspan dy="-4">​</tspan>`;
+
 /** Height (m) → pixel y in the shaft view. */
 export const yOf = (h) => GROUND - h * PX_PER_M;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -41,8 +44,16 @@ export const BUFFER_GAP = 0.4;        // m between the lowest landing and the to
 export const CLOSE = 6;
 export const HANDLE_X = { top: 585, bottom: 585, staggered: 522 };
 /** Gauges: desktop column on the left; compact strip below the scene, seen only in portrait. */
+/** Free-body diagram of cabin + payload: one scale for every setup (80 kN ↔ 50 px). */
+const FBD_SCALE = { k: 50 / 80000, maxLen: 50, kN: true, cx: 22, cy: 72 };
+export const FBD_DESKTOP = { x: 6, y: 104, w: 172, h: 152, ...FBD_SCALE };
+export const FBD_PORTRAIT = { x: 184, y: 466, w: 252, h: 152, ...FBD_SCALE };
+/** Status box, tag column (desktop) and the ± panel, as rects for layout tests. */
+export const TAGS = { x: 4, y: 5, w: 176, h: 96 };
+export const STATUS = { x: 186, y: 3, w: 210, h: 34 };
+export const LOAD_PANEL = { x: 174, y: 308, w: 252, h: 72 };
 export const GAUGES = {
-  desktop: { x: 18, y: 196, w: 158, dy: 58, power: 'Daya rem mesin' },
+  desktop: { x: 18, y: 276, w: 132, dy: 42, power: 'Daya rem' },
   portrait: { x: 460, y: 408, w: 124, dy: 44, power: 'Daya rem' },
 };
 
@@ -91,6 +102,27 @@ export function supportForce(r, s) {
   if (s.phase === 'buffer') return { value: r.weight, label: `F${sub('peredam')}` };
   if (s.phase === 'overspeed') return { value: s.speed > 0 ? s.drivePower / s.speed : 0, label: 'T = P/v' };
   return { value: s.speed > 0 ? s.drivePower / s.speed : r.weight, label: 'T' };
+}
+
+/** Forces on cabin + payload (one object) for the free-body diagram, from the sampled state. */
+export function fbdForces(p, r, s) {
+  const up = supportForce(r, s);
+  const name = s.phase === 'braking' || s.phase === 'stopped' ? `F${sb('rem')}` : s.phase === 'buffer' ? `F${sb('peredam')}` : 'T';
+  return fbdLayout([
+    { key: 'up', dx: 0, dy: -1, value: up.value, label: name },
+    { key: 'g', dx: 0, dy: 1, value: r.totalMass * G, label: `F${sb('g')}` },
+  ], FBD_DESKTOP);
+}
+
+/** Two short notes explaining ΣF for the current phase. */
+function fbdNotes(s) {
+  const Fg = `F${sb('g')}`, Fr = `F${sb('rem')}`;
+  if (s.phase === 'overspeed') return [`T = P/v &lt; ${Fg} → ΣF ke bawah`, 'kabin makin cepat'];
+  if (s.phase === 'braking') return [`${Fr} &gt; ${Fg} → ΣF ke atas`, 'kabin melambat (a = 5 m/s²)'];
+  if (s.phase === 'stopped') return [`${Fr} = ${Fg} → ΣF = 0`, 'kabin ditahan rem darurat'];
+  if (s.phase === 'buffer') return [`F${sb('peredam')} = ${Fg} → ΣF = 0`, 'kabin diam di peredam'];
+  if (s.phase === 'arrived') return [`T = ${Fg} → ΣF = 0`, 'diam di lantai tujuan'];
+  return [`T = ${Fg} → ΣF = 0`, 'kecepatan tetap'];
 }
 
 /** Horizontal gauge: bar filled to `value` on a 0…max scale with labelled marks. */
@@ -247,11 +279,9 @@ export function render(p, r, s, f) {
     ? `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.bottom + 30)}">${hText('top')} · <tspan class="${missed}">${hText('bottom')}</tspan></text>`
     : `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.top + 13)}">${hText('top')}</text><text class="level-text${missed}" x="${r1(right + 8)}" y="${r1(floors.bottom + 13)}">${hText('bottom')}</text>`;
 
-  // ---- forces on the cabin (drawn in the callout, at its centre)
-  const up = supportForce(r, s);
-  const ref = r.totalMass * (G + SAFETY_DECEL);
-  const fx = ins.center.x, fy = ins.center.y;
-  const vx = INSET.x + 7;              // left margin of the callout, clear of the force labels
+  // ---- velocity arrow in the callout's left margin (forces are in the always-visible FBD panel)
+  const fy = ins.center.y;
+  const vx = INSET.x + 7;
 
   return svg(
     `
@@ -260,19 +290,16 @@ export function render(p, r, s, f) {
     ${shaftView}
     ${inset}
     <g class="lift-readouts">${readouts(GAUGES.desktop)}</g>
+    ${fbdPanel({ ...FBD_DESKTOP, title: 'Gaya pada kabin + muatan' }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}
+    ${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya kabin + muatan (m = ${f(r.totalMass)} kg)` }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}
     <g class="lift-readouts compact">${readouts(GAUGES.portrait)}</g>
     <g class="layer layer-labels">
       ${levelLabels}
-      ${tag(96, 30, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
-      ${tag(96, 60, `muatan = ${f(p.payload)} kg`, failed && p.payload > 0 ? 'warn' : '')}
-      ${tag(96, 90, `P maks = ${f(p.power)} W`, 'accent')}
-      ${tag(96, 120, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}
+      ${tag(96, 18, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
+      ${tag(96, 42, `muatan = ${f(p.payload)} kg`, failed && p.payload > 0 ? 'warn' : '')}
+      ${tag(96, 66, `P maks = ${f(p.power)} W`, 'accent')}
+      ${tag(96, 90, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}
       ${statusBox(INSET.x + INSET.w / 2, st.lines, st.cls)}
-    </g>
-    <g class="layer layer-forces">
-      <circle class="vec-dot" cx="${r1(fx)}" cy="${r1(fy)}" r="4"/>
-      ${up.value > 0 ? arrow(fx, fy, fx, fy - vlen(up.value, ref, 85, 16), 'force', `${up.label} = ${f(up.value, 0)} N`) : ''}
-      ${arrow(fx, fy, fx, fy + vlen(r.weight, ref, 85, 16), 'force', `F${sub('g')} = ${f(r.weight, 0)} N`)}
     </g>
     <g class="layer layer-motion">
       ${s.speed > 1e-9 ? arrow(vx, fy, vx, fy + vlen(s.speed, OVERSPEED_TRIP * r.speed, 60, 10), 'velocity', 'v', { labelSide: 'left' }) : ''}
@@ -283,7 +310,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 492' };
+export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 622' };
 
 /** The ± payload panel: under the left column on desktop, below the scene in portrait. */
 export const loadOffset = { desktop: [-18, 0], portrait: [10, 80] };

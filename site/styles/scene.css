@@ -152,3 +152,15 @@
 .swatch.series-velocity { background: var(--velocity); }
 .swatch.series-absorbed { background: var(--absorbed); }
 .swatch.series-total { background: repeating-linear-gradient(90deg, var(--total) 0 5px, transparent 5px 8px); }
+
+/* free-body diagram panel */
+.scene-svg .fbd-title { font-size: 11px; font-weight: 700; fill: var(--text, #222); }
+.scene-svg .fbd-label { font-size: 10px; font-weight: 700; fill: var(--force, #c4501f); }
+.scene-svg .fbd-note { font-size: 10px; fill: var(--text, #333); }
+.scene-svg .fbd-panel.warn .fbd-note { fill: #b3361f; }
+.scene-svg .fbd-dot { fill: var(--text, #222); }
+/* arrow lines use pathLength="1", so dash lengths are fractions of the arrow */
+.scene-svg .fbd-f.clamped .vec-line { stroke-dasharray: 0.07 0.05; }
+/* the prediction preview must not reveal the forces (and so the answer) before predicting */
+.preview-scene .fbd-panel { display: none; }
+.scene-svg .fbd-panel .fbd-bg { fill: rgba(255, 255, 255, 0.92); stroke: var(--line-strong); }
