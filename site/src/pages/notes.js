@@ -35,7 +35,7 @@ export function renderNotes(main) {
               <span class="status ${d.done ? 'done' : ''}">${d.done ? `${icon('check')} Selesai` : 'Belum selesai'}</span>
             </header>
             <dl class="note-fields">
-              ${row('Prediksi', d.prediction !== undefined ? l.prediction.options[d.prediction] + (d.predictionReason ? ' — ' + d.predictionReason : '') : '')}
+              ${row('Prediksi', d.prediction !== undefined ? l.compare.options[d.prediction] + (d.predictionReason ? ' — ' + d.predictionReason : '') : '')}
               ${row('Sketsa (deskripsi)', d.sketchText)}
               ${row('Jawaban', d.answer ? `${d.answer} ${d.unit || ''}${d.answerCorrect ? ' ✓' : ''}` : '')}
               ${row('Langkah', d.steps)}

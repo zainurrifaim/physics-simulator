@@ -5,6 +5,7 @@ import { solve } from '../physics/models.js';
 import { fmt, esc, parseNumber } from '../format.js';
 import { icon } from './icons.js';
 import { mountSketch } from './sketch.js';
+import { blip, confetti } from './fx.js';
 import * as store from '../state/storage.js';
 
 const UNITS = {
@@ -174,6 +175,8 @@ export function mountWorksheet(root, lesson, draft) {
     }
     draft.vectorsCorrect = allOk;
     save();
+    blip(allOk ? 'ding' : 'soft');
+    if (allOk) confetti(root.querySelector('.vector-task'));
     const fb = $('#vector-feedback');
     fb.textContent = allOk
       ? 'Semua vektor tepat. Ingat: gaya, kecepatan, dan perpindahan adalah besaran yang berbeda walau arahnya bisa sama.'
@@ -215,11 +218,17 @@ export function mountWorksheet(root, lesson, draft) {
       const hint = res.status === 'wrong' && draft.attempts >= 2 ? ` Petunjuk: ${lesson.formula.replace(/&nbsp;/g, ' ')}` : '';
       $('#answer-feedback').innerHTML = res.message + hint;
       $('#answer-feedback').className = `feedback ${res.status === 'ok' ? 'good' : 'info'}`;
+      if (res.status === 'ok') {
+        confetti(e.target.closest('.ws-block'));
+        blip('ding');
+      } else blip('soft');
     } else if (action === 'check-vectors') checkVectors();
     else if (action === 'complete') {
       draft.done = true;
       save();
       $('#complete-feedback').textContent = 'Hebat! Modul ditandai selesai. Progresmu tersimpan di browser ini.';
+      confetti(root.querySelector('.worksheet-actions'), 90);
+      blip('ding');
       document.dispatchEvent(new CustomEvent('progress-changed'));
     } else if (action === 'print') window.print();
   });

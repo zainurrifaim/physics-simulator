@@ -102,7 +102,7 @@ function route() {
   } else {
     setActive('home', 'Jelajahi');
     document.title = 'Ruang Fisika — Belajar lewat eksperimen';
-    renderHome(main);
+    cleanup = renderHome(main);
   }
   updateProgress();
   window.scrollTo(0, 0);

@@ -6,9 +6,6 @@ export default {
   category: 'Usaha & Energi',
   tags: ['Energi potensial', 'Usaha'],
   minutes: 12,
-  color: 'mint',
-  description: 'Satu barbel, satu pertanyaan. Temukan hubungan massa, tinggi, dan energi.',
-  hook: 'Cukupkah 500 joule untuk mengangkat barbel ke atas kepala?',
   problem:
     'Seorang atlet angkat besi ingin mengangkat barbel seberat 20 kg di atas kepalanya. Jarak dari lantai ke atas kepalanya adalah 1,5 m. Jika atlet tersebut memiliki energi 500 Joule, dapatkah ia mengangkat barbel tersebut? (g = 10 m/s²)',
   preset: { mass: 20, height: 1.5, energy: 500 },
@@ -20,24 +17,27 @@ export default {
   formula: 'E<sub>p</sub> = m · g · h',
   assumptions:
     'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel diangkat dengan kecepatan tetap sehingga gaya angkat sama dengan gaya berat; percepatan singkat di awal dan akhir diabaikan. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
-  prediction: {
-    question: 'Menurutmu, apakah energi 500 J cukup untuk mengangkat barbel 20 kg setinggi 1,5 m?',
-    options: ['Cukup', 'Tidak cukup', 'Pas sekali, tidak lebih'],
-    correct: 0,
+  compare: {
+    question: 'Energi atlet 500 J. Barbel 20 kg atau 40 kg — mana yang sampai ke atas kepala?',
+    sub: 'Atlet yang sama mengangkat barbel setinggi 1,5 m. Massa B dua kali massa A. g = 10 m/s².',
+    options: ['Keduanya', 'Hanya A', 'Hanya B', 'Tidak ada'],
+    correct: 1,
+    key: 'mass',
+    B: { mass: 40 },
+    tag: (p, f) => `${f(p.mass)} kg`,
+    detail: (p, r, f) => (r.ok ? `butuh ${f(r.work)} J ✓` : `butuh ${f(r.work)} J ✗ · berhenti di ${f(r.reachable, 2)} m`),
+    equation: (A, rA, B, rB, f) =>
+      `<span class="a">${f(rA.work)} J</span> &lt; ${f(A.energy)} J ${rB.work > B.energy ? '&lt;' : '≥'} <span class="b">${f(rB.work)} J</span>`,
+    caption: (A, rA, B, rB, f) => `E<sub>p</sub> = m · g · h — massa ${f(B.mass / A.mass, 2)}×, energi yang dibutuhkan ${f(rB.work / rA.work, 2)}×`,
+    verdict: (A, rA, B, rB, f) =>
+      rA.ok && !rB.ok ? 'Hanya A. Massa dua kali lipat butuh energi dua kali lipat — 600 J melebihi 500 J.' : rA.ok && rB.ok ? 'Keduanya cukup.' : !rA.ok && !rB.ok ? 'Tidak ada yang cukup.' : 'Hanya B.',
+    diagram: 'Diagram gaya pada barbel',
+    forces: (p, r) => [
+      { dx: 0, dy: -1, value: r.weight, label: 'F' },
+      { dx: 0, dy: 1, value: r.weight, label: 'F<tspan class="sub" dy="4">g</tspan>' },
+    ],
+    graph: { label: 'energi potensial', unit: 'J', fn: (s) => s.potential, line: (p) => ({ value: p.energy, label: 'energi atlet' }) },
   },
-  story: (p, r, f) => [
-    { caption: 'Cukupkah 500 joule?', sub: 'Seorang atlet akan mengangkat barbel dari lantai ke atas kepala.', layers: [], t: 'start' },
-    { caption: `Barbel ${f(p.mass)} kg, tinggi ${f(p.height)} m`, sub: 'Kita catat besaran yang diketahui langsung pada gambar.', layers: ['labels'], t: 'start' },
-    { caption: 'Dua gaya, satu perpindahan', sub: `Gaya berat F<sub>g</sub> = mg = ${f(r.weight)} N ke bawah. Gaya angkat F ke atas. Perpindahan s ke atas.`, layers: ['labels', 'forces', 'motion'], t: 'start' },
-    { caption: 'Angkat!', sub: 'Saat barbel naik, usaha atlet tersimpan sebagai energi potensial.', layers: ['labels', 'forces', 'motion'], t: 'play' },
-    {
-      caption: 'Hitung energinya',
-      layers: ['labels'],
-      t: 'end',
-      equation: ['E<sub>p</sub> = m · g · h', `E<sub>p</sub> = ${f(p.mass)} kg × 10 m/s² × ${f(p.height)} m`, `E<sub>p</sub> = <b>${f(r.work)} J</b>`],
-    },
-    { caption: r.ok ? `${f(p.energy)} J > ${f(r.work)} J → BISA!` : `${f(p.energy)} J < ${f(r.work)} J → belum bisa`, sub: 'Grafik energi potensial naik seiring ketinggian, sampai menyentuh kebutuhan energi.', layers: ['labels'], t: 'end', chart: true },
-  ],
   worked: (p, r, f) => [
     `F<sub>g</sub> = m · g = ${f(p.mass)} × 10 = ${f(r.weight)} N`,
     `W = E<sub>p</sub> = m · g · h = ${f(p.mass)} × 10 × ${f(p.height)} = <b>${f(r.work)} J</b>`,
@@ -45,21 +45,6 @@ export default {
       ? `Energi tersedia ${f(p.energy)} J ≥ ${f(r.work)} J → atlet <b>bisa</b> mengangkat barbel (model ideal).`
       : `Energi tersedia ${f(p.energy)} J < ${f(r.work)} J → barbel hanya mencapai h = E / (mg) = ${f(r.reachable, 2)} m.`,
   ],
-  summary: (p, r, f) => ({
-    message: r.ok ? 'Energi cukup untuk mencapai tinggi target.' : 'Energi belum cukup untuk mencapai tinggi target.',
-    metrics: [
-      ['Energi yang dibutuhkan', `${f(r.work)} J`],
-      ['Energi tersedia', `${f(p.energy)} J`],
-      ['Tinggi yang tercapai', `${f(r.reachable, 2)} m`],
-    ],
-  }),
-  chart: {
-    yLabel: 'Energi',
-    yUnit: 'J',
-    series: (p, r) => [{ label: 'Energi potensial E<sub>p</sub>', kind: 'energy', fn: (s) => s.potential }],
-    lines: (p, r) => [{ label: 'Energi tersedia', value: p.energy }],
-    note: 'Energi potensial bertambah sebanding dengan ketinggian. Garis putus-putus menunjukkan energi yang dimiliki atlet.',
-  },
   worksheet: {
     question: 'Berapa energi potensial (usaha) yang dibutuhkan untuk mengangkat barbel pada soal asli?',
     vectors: [

@@ -134,3 +134,30 @@ test('every preset lies inside its slider ranges', () => {
     }
   }
 });
+
+test('A/B comparisons support each hook question', () => {
+  const pair = (id) => {
+    const l = lessons.find((x) => x.id === id);
+    const A = l.preset;
+    const B = { ...l.preset, ...l.compare.B };
+    return { l, A, B, rA: solve(id, A), rB: solve(id, B) };
+  };
+  for (const id of ['angkat', 'derek', 'lift']) {
+    const { l, rA, rB } = pair(id);
+    assert.equal(rA.ok, true, id);
+    assert.equal(rB.ok, false, id);
+    assert.equal(l.compare.options[l.compare.correct], 'Hanya A', id);
+  }
+  const s = pair('sabuk');
+  close(s.rB.force / s.rA.force, 4);
+  assert.equal(s.l.compare.options[s.l.compare.correct], '4×');
+  const c = pair('sepeda');
+  close(c.rA.duration, c.rB.duration);
+  assert.equal(c.l.compare.options[c.l.compare.correct], 'Sama saja');
+  for (const l of lessons) {
+    for (const [k, v] of Object.entries(l.compare.B)) {
+      const f = l.fields.find((x) => x.key === k);
+      assert.ok(f && v >= f.min && v <= f.max, `${l.id}.B.${k}`);
+    }
+  }
+});

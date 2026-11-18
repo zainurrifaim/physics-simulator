@@ -1,6 +1,6 @@
 // Local progress, stored per browser. Every access is guarded: storage may be
 // unavailable (private mode, blocked site data), and the app must still work.
-const KEY = 'ruangfisika:v1';
+const KEY = 'ruangfisika:v2'; // v2: A/B poster format (prediction options changed)
 
 let memory = {};
 export let storageAvailable = true;

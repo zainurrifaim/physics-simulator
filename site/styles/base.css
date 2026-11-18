@@ -1,14 +1,14 @@
 :root {
-  --bg: #f6f4ee;
+  --bg: #fafaf8;
   --surface: #fffefb;
-  --surface-2: #f0eee6;
-  --line: #e2dfd4;
-  --line-strong: #cfcabb;
-  --text: #1c2b33;
-  --muted: #5e6a6c;
-  --accent: #1f6b5f;
-  --accent-strong: #17544a;
-  --accent-soft: #dcebe5;
+  --surface-2: #f2f2ee;
+  --line: #e6e5e0;
+  --line-strong: #cfcdc6;
+  --text: #171717;
+  --muted: #62625f;
+  --accent: #1a1a1a;
+  --accent-strong: #000;
+  --accent-soft: #efefea;
   --warn: #b5482b;
   --warn-soft: #fbe5dc;
   --good: #23784f;
@@ -32,6 +32,8 @@
   --shadow: 0 1px 2px rgba(28, 43, 51, 0.05), 0 6px 24px rgba(28, 43, 51, 0.06);
   --font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: "Georgia", "Cambria", "Times New Roman", serif;
+  --case-a: #2b5bd7;
+  --case-b: #d23a2c;
 }
 
 *,
@@ -55,6 +57,7 @@ body {
 
 h1, h2, h3, h4 {
   margin: 0 0 0.4em;
+  font-family: var(--font-serif);
   line-height: 1.2;
   letter-spacing: -0.02em;
   font-weight: 650;

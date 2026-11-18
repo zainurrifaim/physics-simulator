@@ -6,9 +6,6 @@ export default {
   category: 'Usaha & Daya',
   tags: ['Daya', 'Usaha'],
   minutes: 15,
-  color: 'sand',
-  description: 'Angkat sebuah peti dan selidiki perbedaan antara usaha dan daya.',
-  hook: 'Derek 20 kW, peti 200 kg, 50 detik. Mampukah?',
   problem:
     'Kekuatan derek (crane) adalah 20 kW. Derek digunakan untuk mengangkat kotak bermassa 200 kg dalam 50 detik. Jarak benda dari lantai adalah 15 m. Apakah derek mampu mengangkat kotak tersebut? (g = 10 m/s²)',
   preset: { mass: 200, height: 15, time: 50, power: 20000 },
@@ -21,24 +18,27 @@ export default {
   formula: 'W = F · s &nbsp;&nbsp; P = W / t',
   assumptions:
     'Daya derek dianggap seluruhnya menjadi daya mekanik untuk mengangkat (efisiensi ideal). Kotak naik dengan kecepatan tetap sehingga tegangan tali sama dengan gaya berat. Bila daya kurang, simulasi tidak menyatakan "mustahil", tetapi menunjukkan waktu minimum yang lebih lama.',
-  prediction: {
-    question: 'Daya yang dibutuhkan untuk mengangkat kotak dalam 50 detik itu…',
-    options: ['Jauh lebih kecil dari 20 kW', 'Hampir sama dengan 20 kW', 'Lebih besar dari 20 kW'],
-    correct: 0,
+  compare: {
+    question: 'Derek 20 kW, waktu 50 s. Peti 200 kg atau 10.000 kg — masih mampu?',
+    sub: 'Derek yang sama mengangkat peti setinggi 15 m. Massa B 50 kali massa A. g = 10 m/s².',
+    options: ['Keduanya mampu', 'Hanya A', 'Hanya B', 'Tidak ada'],
+    correct: 1,
+    key: 'mass',
+    B: { mass: 10000 },
+    tag: (p, f) => `${f(p.mass)} kg`,
+    detail: (p, r, f) => (r.ok ? `butuh ${f(r.required)} W ✓` : `butuh ${f(r.required)} W ✗ · perlu ${f(r.minTime, 1)} s`),
+    equation: (A, rA, B, rB, f) =>
+      `<span class="a">${f(rA.required)} W</span> ≤ ${f(A.power)} W ${rB.ok ? '≥' : '&lt;'} <span class="b">${f(rB.required)} W</span>`,
+    caption: (A, rA, B, rB, f) => `P = W / t = m · g · h / t — dengan waktu yang sama, massa ${f(B.mass / A.mass)}× butuh daya ${f(rB.required / rA.required)}×`,
+    verdict: (A, rA, B, rB, f) =>
+      rA.ok && !rB.ok ? `Hanya A. Peti B butuh ${f(rB.required)} W; dengan 20 kW derek perlu ${f(rB.minTime, 1)} s, bukan 50 s.` : rA.ok && rB.ok ? 'Keduanya mampu.' : 'Daya derek tidak cukup.',
+    diagram: 'Diagram gaya pada peti',
+    forces: (p, r) => [
+      { dx: 0, dy: -1, value: r.weight, label: 'T' },
+      { dx: 0, dy: 1, value: r.weight, label: 'F<tspan class="sub" dy="4">g</tspan>' },
+    ],
+    graph: { label: 'usaha oleh derek', unit: 'J', fn: (s) => s.potential },
   },
-  story: (p, r, f) => [
-    { caption: 'Mampukah derek ini?', sub: 'Sebuah derek di lokasi proyek akan mengangkat peti ke lantai atas.', layers: [], t: 'start' },
-    { caption: `P = ${f(p.power / 1000)} kW · m = ${f(p.mass)} kg`, sub: `Peti harus naik ${f(p.height)} m dalam ${f(p.time)} detik.`, layers: ['labels'], t: 'start' },
-    { caption: 'Tali menarik, bumi menarik', sub: `Tegangan tali T ke atas, gaya berat F<sub>g</sub> = ${f(r.weight)} N ke bawah, perpindahan s ke atas.`, layers: ['labels', 'forces', 'motion'], t: 'start' },
-    { caption: 'Mulai mengangkat', sub: 'Usaha bertambah sedikit demi sedikit setiap detik — itulah daya.', layers: ['labels', 'forces', 'motion'], t: 'play' },
-    {
-      caption: 'Usaha, lalu daya',
-      layers: ['labels'],
-      t: 'end',
-      equation: [`W = F · s = ${f(r.weight)} N × ${f(p.height)} m = ${f(r.work)} J`, 'P = W / t', `P = ${f(r.work)} J / ${f(p.time)} s = <b>${f(r.required)} W</b>`],
-    },
-    { caption: r.ok ? `${f(r.required)} W ≪ ${f(p.power)} W → MAMPU` : `Butuh ${f(r.required)} W → terlalu lambat`, sub: 'Kemiringan grafik usaha terhadap waktu adalah daya.', layers: ['labels'], t: 'end', chart: true },
-  ],
   worked: (p, r, f) => [
     `F<sub>g</sub> = m · g = ${f(p.mass)} × 10 = ${f(r.weight)} N`,
     `W = F · s = ${f(r.weight)} × ${f(p.height)} = ${f(r.work)} J`,
@@ -47,21 +47,6 @@ export default {
       ? `P<sub>derek</sub> = ${f(p.power)} W ≥ ${f(r.required)} W → derek <b>mampu</b>.`
       : `P<sub>derek</sub> = ${f(p.power)} W < ${f(r.required)} W → waktu minimum t = W / P = ${f(r.minTime, 2)} s.`,
   ],
-  summary: (p, r, f) => ({
-    message: r.ok ? 'Daya derek cukup untuk waktu yang diminta.' : 'Daya kurang: pengangkatan butuh waktu lebih lama.',
-    metrics: [
-      ['Usaha', `${f(r.work)} J`],
-      ['Daya yang dibutuhkan', `${f(r.required)} W`],
-      ['Waktu minimum', `${f(r.minTime, 2)} s`],
-    ],
-  }),
-  chart: {
-    yLabel: 'Usaha',
-    yUnit: 'J',
-    series: () => [{ label: 'Usaha oleh tali W', kind: 'energy', fn: (s) => s.potential }],
-    lines: (p, r) => [{ label: 'Usaha total', value: r.work }],
-    note: 'Garis lurus: usaha bertambah dengan laju tetap. Makin curam garisnya, makin besar daya.',
-  },
   worksheet: {
     question: 'Berapa daya yang dibutuhkan untuk mengangkat kotak pada soal asli?',
     vectors: [
