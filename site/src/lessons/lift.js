@@ -1,5 +1,6 @@
 export default {
   id: 'lift',
+  interaction: { handles: ['top', 'bottom'], load: 'payload', increment: 50, hint: 'Tambahkan muatan dengan + atau −. Seret penanda lantai awal dan akhir.' },
   number: '03',
   short: 'Lift',
   title: 'Lift dan Muatan',

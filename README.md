@@ -10,13 +10,14 @@ Situs belajar fisika berbahasa Indonesia dengan lima simulasi kehidupan sehari-h
 | 04 | Uji Sabuk Pengaman | 36 km/jam, berhenti dalam 0,5 m, dummy 60 kg, sabuk 7.000 N | 6.000 N → tidak robek |
 | 05 | Sepeda Menuruni Bukit | Tinggi 80 m, lintasan 160 m, tanpa gesekan | 8 s |
 
-Setiap modul adalah satu **poster A/B** bergaya reel fisika:
+Setiap modul memiliki empat halaman belajar yang dapat dibuka langsung:
 
-- **Pertanyaan** besar ("Kecepatan 2× lipat. Gaya pada sabuk 2× atau 4×?") dengan pilihan jawaban.
-- **Dua situasi berdampingan**: A = soal asli (biru), B = pembanding (merah), bergerak pada satu jam yang sama.
-- Setelah menebak dan menonton: **satu persamaan berwarna** (mis. `6.000 N × 4 = 24.000 N`), **diagram gaya** A dan B dengan skala yang sama, **grafik** A dan B terhadap waktu, dan kesimpulan.
-- **Coba sendiri**: geser angka A dan B, lalu putar lagi; pembahasan langkah demi langkah untuk soal asli.
-- **Lembar belajar**: sketsa bebas, tugas vektor, jawaban angka + satuan yang diperiksa otomatis, daftar periksa dari rubrik, dan refleksi. Tersimpan di browser (localStorage) dan bisa dicetak.
+- **Prediksi**: pertanyaan A/B berdasarkan soal awal dan pilihan jawaban.
+- **Eksperimen**: tambahkan/kurangi beban langsung pada gambar, seret penanda tinggi, kecepatan, jarak pengereman, atau panjang lereng. Setiap penanda mendukung tombol panah keyboard dan kolom angka. Mengubah setup menjeda dan mengulang waktu ke awal.
+- **Penjelasan**: persamaan, kesimpulan, serta pilihan grafik, diagram gaya, atau langkah perhitungan. Hasil mengikuti setup A/B saat ini; penilaian prediksi hanya berlaku untuk soal awal.
+- **Latihan**: sketsa, vektor satu per satu, perhitungan dengan satuan, dan refleksi. Latihan selalu menggunakan **soal asli**, bukan angka eksperimen yang diubah. Draf, parameter, dan waktu simulasi tersimpan di browser; cetak menampilkan seluruh bagian latihan.
+
+Modul langsung membuka **Eksperimen** dengan satu gambar besar. Tombol A, B, dan A/B memilih satu situasi atau perbandingan. Satu bilah atas memuat pilihan modul, langkah belajar, serta tombol **Atur** untuk membuka parameter dan bantuan interaksi. Hamburger memuat navigasi situs. Grafik dan diagram gaya memenuhi area penjelasan; uraian dan asumsi tersedia melalui **Detail**. Animasi menghormati preferensi pengurangan gerak.
 
 | Modul | A (soal asli) | B (pembanding) | Pelajaran |
 |---|---|---|---|
@@ -47,10 +48,10 @@ site/
     physics/models.js  model fisika murni (SI, g = 10 m/s²)
     lessons/*.js     teks, preset soal asli, langkah cerita, rubrik per modul
     scenes/*.js      ilustrasi SVG per modul + helper gambar
-    components/      chart (grafik A/B), fbd (diagram gaya), worksheet, sketch, fx, icons
+    components/      interaction (pointer/keyboard/validasi), chart, fbd, worksheet, sketch, fx, icons
     pages/           home, workspace, concepts, notes
     state/storage.js penyimpanan lokal berversi
-tests/physics.test.mjs
+tests/               physics.test.mjs, interaction.test.mjs
 materials/           dokumen soal dan kunci jawaban asli (tidak diubah)
 ```
 
@@ -60,7 +61,7 @@ materials/           dokumen soal dan kunci jawaban asli (tidak diubah)
 npm test        # atau: node --test tests/*.test.mjs
 ```
 
-Tes memeriksa kelima hasil soal asli, nilai di bawah/tepat/di atas ambang, konversi satuan, input tidak valid, kekekalan energi, dan bahwa massa tidak memengaruhi waktu meluncur.
+Tes memeriksa kelima hasil soal asli, nilai ambang, konversi satuan, input tidak valid, kekekalan energi, pemetaan gerakan penanda, pembatasan parameter, perubahan hasil per modul, dan batas grafik A/B yang berbeda.
 
 ## Catatan model
 

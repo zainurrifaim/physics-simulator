@@ -1,5 +1,6 @@
 export default {
   id: 'angkat',
+  interaction: { handles: ['height'], load: 'mass', increment: 5, hint: 'Tambahkan pelat dengan + atau −. Seret penanda tinggi untuk mengubah target.' },
   number: '01',
   short: 'Angkat besi',
   title: 'Atlet Angkat Besi',

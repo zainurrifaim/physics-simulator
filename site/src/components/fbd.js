@@ -27,12 +27,12 @@ function arrow(x1, y1, x2, y2, cls, label, value) {
   </g>`;
 }
 
-export function forceDiagram(lesson, cases) {
+export function forceDiagram(lesson, cases, { stacked = false } = {}) {
   const sets = cases.map((c) => lesson.compare.forces(c.p, c.r));
   const max = Math.max(...sets.flat().map((f) => f.value), 1e-9);
   const cols = cases.map((c, k) => {
     const leftward = sets.flat().some((f) => f.dx < -0.5);
-    const cx = leftward ? (k === 0 ? 118 : 288) : k === 0 ? 95 : 265;
+    const cx = leftward ? (stacked || k === 0 ? 118 : 288) : stacked || k === 0 ? 95 : 265;
     const cy = 112;
     const arrows = sets[k]
       .map((f) => {
@@ -40,11 +40,11 @@ export function forceDiagram(lesson, cases) {
         return arrow(cx, cy, cx + f.dx * len, cy + f.dy * len, c.cls, f.label, f.value);
       })
       .join('');
-    return `<g><rect class="fbody" x="${cx - 9}" y="${cy - 9}" width="18" height="18" rx="3"/>${arrows}
+    return `<g transform="translate(0 ${stacked ? k * VH : 0})"><rect class="fbody" x="${cx - 9}" y="${cy - 9}" width="18" height="18" rx="3"/>${arrows}
       <text class="fcase fcase-${c.cls}" x="${cx}" y="${VH - 8}" text-anchor="middle">${c.cls.toUpperCase()}</text></g>`;
   });
-  return `<svg class="fbd" viewBox="0 0 ${VW} ${VH}" role="img" aria-label="${lesson.compare.diagram} untuk A dan B">
-    <path class="fsep" d="M180 20V${VH - 24}"/>
+  return `<svg class="fbd" viewBox="0 0 ${stacked ? 210 : VW} ${stacked ? VH * cases.length : VH}" role="img" aria-label="${lesson.compare.diagram} untuk A dan B">
+    <path class="fsep" d="${stacked ? `M10 ${VH + 7}H200` : `M180 20V${VH - 24}`}"/>
     ${cols.join('')}
   </svg>`;
 }

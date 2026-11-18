@@ -13,7 +13,7 @@ let cleanup = null;
 
 function shell() {
   app.innerHTML = `
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" inert>
       <a class="brand" href="#home"><span class="brand-icon">${icon('atom')}</span><span class="brand-text">ruang<span>fisika</span><small>LABORATORIUM INTERAKTIF</small></span></a>
       <div class="side-section">RUANG BELAJAR</div>
       <nav aria-label="Navigasi utama">
@@ -70,6 +70,7 @@ function route() {
   const hash = location.hash.replace(/^#/, '') || 'home';
   const mainEl = document.querySelector('#main');
   const [page, id] = hash.split('/');
+  document.body.classList.toggle('in-simulation', page === 'sim' && Boolean(byId(id)));
   const known = page === 'home' || page === 'konsep' || page === 'catatan' || (page === 'sim' && byId(id));
   if (!known) {
     // in-page anchor such as the skip link: scroll, don't navigate
@@ -111,7 +112,8 @@ function route() {
 
 function closeMenu() {
   document.body.classList.remove('menu-open');
-  document.querySelector('[data-action="menu"]')?.setAttribute('aria-expanded', 'false');
+  document.querySelector('#sidebar').inert = true;
+  document.querySelectorAll('[data-action="menu"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
 }
 
 document.addEventListener('click', (e) => {
@@ -119,6 +121,7 @@ document.addEventListener('click', (e) => {
   if (action === 'guide') document.querySelector('#guide').showModal();
   else if (action === 'menu') {
     const open = document.body.classList.toggle('menu-open');
+    document.querySelector('#sidebar').inert = !open;
     e.target.closest('[data-action]').setAttribute('aria-expanded', String(open));
   } else if (action === 'menu-close') closeMenu();
 });

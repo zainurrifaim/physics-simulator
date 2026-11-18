@@ -1,5 +1,6 @@
 export default {
   id: 'derek',
+  interaction: { handles: ['height'], load: 'mass', increment: 50, hint: 'Tambahkan balok dengan + atau −. Seret penanda untuk mengatur tinggi angkat.' },
   number: '02',
   short: 'Derek',
   title: 'Derek Pengangkat',

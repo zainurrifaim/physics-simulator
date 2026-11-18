@@ -5,7 +5,6 @@ import { sample } from '../physics/models.js';
 import { fmt } from '../format.js';
 
 const VW = 360;
-const VH = 230;
 const PAD = { l: 48, r: 14, t: 26, b: 30 };
 
 function niceMax(v) {
@@ -19,14 +18,16 @@ const compact = (v) => (Math.abs(v) >= 1e6 ? `${fmt(v / 1e6, 1)} jt` : Math.abs(
 /**
  * cases: [{ p, r, cls: 'a' | 'b' }]; total: shared time axis length; t: cursor time.
  */
-export function compareChart(lesson, cases, total, t, { reveal = true } = {}) {
+export function compareChart(lesson, cases, total, t, { reveal = true, tall = false } = {}) {
+  const VH = tall ? 600 : 230;
   const g = lesson.compare.graph;
   const N = 120;
   const times = Array.from({ length: N + 1 }, (_, i) => (total * i) / N);
   const value = (c, tt) => g.fn(sample(lesson.id, c.p, c.r, tt), c.p, c.r, tt);
   const data = cases.map((c) => times.map((tt) => value(c, tt)));
-  const line = g.line ? g.line(cases[0].p) : null;
-  const maxY = niceMax(Math.max(...data.flat(), line ? line.value : 0) * 1.1);
+  const limits = g.line ? cases.map((c) => ({ ...g.line(c.p), cls: c.cls })) : [];
+  const sharedLimit = limits.length === 2 && limits[0].value === limits[1].value;
+  const maxY = niceMax(Math.max(...data.flat(), ...limits.map((l) => l.value), 0) * 1.1);
   const iw = VW - PAD.l - PAD.r;
   const ih = VH - PAD.t - PAD.b;
   const x = (tt) => PAD.l + (tt / total) * iw;
@@ -48,9 +49,7 @@ export function compareChart(lesson, cases, total, t, { reveal = true } = {}) {
   const ticks = [0, maxY / 2, maxY]
     .map((v) => `<text class="ct" x="${PAD.l - 6}" y="${y(v) + 4}" text-anchor="end">${compact(v)}</text>`)
     .join('');
-  const ref = line
-    ? `<path class="cref" d="M${PAD.l} ${y(line.value)}H${VW - PAD.r}"/><text class="cref-t" x="${VW - PAD.r}" y="${y(line.value) - 5}" text-anchor="end">${line.label} ${compact(line.value)} ${g.unit}</text>`
-    : '';
+  const ref = (sharedLimit ? limits.slice(0, 1) : limits).map((line) => `<path class="cref" style="stroke:${sharedLimit ? '#888' : `var(--case-${line.cls})`}" d="M${PAD.l} ${y(line.value)}H${VW - PAD.r}"/><text class="cref-t" x="${VW - PAD.r}" y="${y(line.value) - 5}" text-anchor="end">${sharedLimit ? 'A/B' : line.cls.toUpperCase()} · ${line.label} ${compact(line.value)} ${g.unit}</text>`).join('');
   const cursor = reveal ? '' : `<path class="ccur" d="M${x(Math.min(t, total))} ${PAD.t}V${PAD.t + ih}"/>`;
 
   return `<svg class="cmp-chart" viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Grafik ${g.label} terhadap waktu untuk A dan B">

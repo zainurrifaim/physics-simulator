@@ -5,7 +5,7 @@ import { solve } from '../physics/models.js';
 import { fmt, esc, parseNumber } from '../format.js';
 import { icon } from './icons.js';
 import { mountSketch } from './sketch.js';
-import { blip, confetti } from './fx.js';
+import { blip } from './fx.js';
 import * as store from '../state/storage.js';
 
 const UNITS = {
@@ -60,6 +60,7 @@ export function mountWorksheet(root, lesson, draft) {
       <span class="saved-label">${store.storageAvailable ? 'Tersimpan otomatis di browser ini' : 'Penyimpanan browser tidak tersedia'}</span>
     </div>
     <details class="problem-text open-able"><summary>Baca soal asli</summary><p>${lesson.problem}</p></details>
+    <p class="original-values">Soal asli: ${lesson.fields.filter((f) => f.key !== 'carMass').map((f) => `${f.symbol} = ${fmt(lesson.preset[f.key])} ${f.unit}`).join(' · ')}</p>
 
     <div class="ws-block">
       <h3 class="ws-title"><span>a</span> Sketsa situasi</h3>
@@ -71,7 +72,8 @@ export function mountWorksheet(root, lesson, draft) {
 
     <div class="ws-block">
       <h3 class="ws-title"><span>b</span> Diagram vektor</h3>
-      <p class="small muted">Pilih arah setiap vektor dan tulis besar gaya dalam newton. Pratinjau di sebelah kanan menggambar panahmu.</p>
+      <p class="small muted">Pilih arah vektor. Jika diminta, tulis besar gaya dalam newton.</p>
+      <div class="vector-navigation"><button class="button ghost" data-ws="previous-vector" aria-label="Vektor sebelumnya">←</button><span id="vector-count"></span><button class="button ghost" data-ws="next-vector" aria-label="Vektor berikutnya">→</button></div>
       <div class="vector-task">
         <div class="vector-list">
           ${ws.vectors
@@ -88,7 +90,7 @@ export function mountWorksheet(root, lesson, draft) {
               </fieldset>`
             )
             .join('')}
-          <button class="button secondary" data-ws="check-vectors">${icon('check')} Periksa vektor</button>
+          <button class="button secondary" data-ws="check-vectors">${icon('check')} Periksa semua vektor</button>
           <p class="feedback" id="vector-feedback" role="status"></p>
         </div>
         <div class="vector-preview" aria-hidden="true"><svg viewBox="0 0 220 220"></svg><span>Pratinjau diagram</span></div>
@@ -110,11 +112,11 @@ export function mountWorksheet(root, lesson, draft) {
       <textarea id="ws-steps" class="text-area" data-field="steps" rows="4" placeholder="Diketahui: …&#10;Ditanya: …&#10;Jawab: …">${esc(draft.steps)}</textarea>
     </div>
 
-    <div class="ws-block">
-      <h3 class="ws-title"><span>✓</span> Daftar periksa (mandiri / bersama guru)</h3>
+    <div class="ws-block rubric-block"><details>
+      <summary>Daftar periksa (mandiri / bersama guru)</summary>
       <p class="small muted">Diambil dari kunci jawaban dan rubrik. Sketsa dan penalaran tidak dinilai otomatis.</p>
       <div class="rubric">${ws.rubric.map((item, i) => `<label class="check"><input type="checkbox" data-rubric="${i}" ${draft.rubric[i] ? 'checked' : ''}><span>${item}</span></label>`).join('')}</div>
-    </div>
+    </details></div>
 
     <div class="ws-block">
       <h3 class="ws-title"><span>?</span> Refleksi</h3>
@@ -131,6 +133,21 @@ export function mountWorksheet(root, lesson, draft) {
 
   const $ = (s) => root.querySelector(s);
   mountSketch($('.sketch-host'), draft, save);
+  let vectorIndex = 0;
+  function showVector() {
+    root.querySelectorAll('.vector-item').forEach((item, i) => { item.hidden = i !== vectorIndex; });
+    $('#vector-count').textContent = `Vektor ${vectorIndex + 1} / ${ws.vectors.length}`;
+    $('[data-ws="previous-vector"]').disabled = vectorIndex === 0;
+    $('[data-ws="next-vector"]').disabled = vectorIndex === ws.vectors.length - 1;
+  }
+  showVector();
+  if (draft.answerCorrect && draft.answer) {
+    const restored = checkAnswer(draft.answer, draft.unit, expected);
+    if (restored.status === 'ok') {
+      $('#answer-feedback').textContent = restored.message;
+      $('#answer-feedback').className = 'feedback good';
+    }
+  }
 
   function drawPreview() {
     const svg = $('.vector-preview svg');
@@ -176,7 +193,6 @@ export function mountWorksheet(root, lesson, draft) {
     draft.vectorsCorrect = allOk;
     save();
     blip(allOk ? 'ding' : 'soft');
-    if (allOk) confetti(root.querySelector('.vector-task'));
     const fb = $('#vector-feedback');
     fb.textContent = allOk
       ? 'Semua vektor tepat. Ingat: gaya, kecepatan, dan perpindahan adalah besaran yang berbeda walau arahnya bisa sama.'
@@ -208,7 +224,10 @@ export function mountWorksheet(root, lesson, draft) {
   root.addEventListener('click', (e) => {
     const action = e.target.closest('[data-ws]')?.dataset.ws;
     if (!action) return;
-    if (action === 'check-answer') {
+    if (action === 'previous-vector' || action === 'next-vector') {
+      vectorIndex = Math.max(0, Math.min(ws.vectors.length - 1, vectorIndex + (action === 'next-vector' ? 1 : -1)));
+      showVector();
+    } else if (action === 'check-answer') {
       draft.answer = $('#ws-answer').value;
       draft.unit = $('#ws-unit').value;
       draft.attempts = (draft.attempts || 0) + 1;
@@ -219,7 +238,6 @@ export function mountWorksheet(root, lesson, draft) {
       $('#answer-feedback').innerHTML = res.message + hint;
       $('#answer-feedback').className = `feedback ${res.status === 'ok' ? 'good' : 'info'}`;
       if (res.status === 'ok') {
-        confetti(e.target.closest('.ws-block'));
         blip('ding');
       } else blip('soft');
     } else if (action === 'check-vectors') checkVectors();
@@ -227,7 +245,6 @@ export function mountWorksheet(root, lesson, draft) {
       draft.done = true;
       save();
       $('#complete-feedback').textContent = 'Hebat! Modul ditandai selesai. Progresmu tersimpan di browser ini.';
-      confetti(root.querySelector('.worksheet-actions'), 90);
       blip('ding');
       document.dispatchEvent(new CustomEvent('progress-changed'));
     } else if (action === 'print') window.print();

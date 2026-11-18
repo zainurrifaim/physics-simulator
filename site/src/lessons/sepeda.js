@@ -1,5 +1,6 @@
 export default {
   id: 'sepeda',
+  interaction: { handles: ['height', 'length'], load: 'mass', increment: 10, hint: 'Seret h untuk tinggi bukit dan L untuk panjang lintasan. + atau − mengubah massa.' },
   number: '05',
   short: 'Sepeda',
   title: 'Sepeda Menuruni Bukit',

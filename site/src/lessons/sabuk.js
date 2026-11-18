@@ -1,5 +1,6 @@
 export default {
   id: 'sabuk',
+  interaction: { handles: ['speed', 'distance'], hint: 'Seret penanda v₀ untuk mengatur kecepatan, atau s untuk jarak pengereman.' },
   number: '04',
   short: 'Sabuk pengaman',
   title: 'Uji Sabuk Pengaman',
