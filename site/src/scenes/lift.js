@@ -179,7 +179,7 @@ export function render(p, r, s, f) {
 
   // ---- shaft view (true scale)
   const ticks = [];
-  for (let h = 0; h <= 40; h += 5) {
+  for (let h = 0; h <= 40; h += 10) {
     const y = yOf(h);
     const near = Math.abs(h - p.top) <= 3 || Math.abs(h - p.bottom) <= 3 || (close && h < p.bottom && h > p.bottom - 5.5);
     ticks.push(`<path class="floor-mark" d="M${r1(right)} ${y}h5"/>${near ? '' : `<text class="floor-text" x="${r1(right + 8)}" y="${y + 4}">${h}</text>`}`);
@@ -249,8 +249,8 @@ export function render(p, r, s, f) {
       <rect class="inset-header" x="${INSET.x + 1}" y="${INSET.y + 1}" width="${INSET.w - 2}" height="${INSET_HEADER - 1}" rx="5"/>
       <text class="inset-title" x="${INSET.x + 10}" y="${INSET.y + 19}">Kabin</text>
       <text class="inset-sub" x="${INSET.x + 10}" y="${INSET.y + 35}">diperbesar 10×</text>
-      ${display}
-      <text class="inset-note" x="${INSET.x + 8}" y="${INSET.y + INSET.h - 4}">1 balok baja = ${f(BLOCK_KG)} kg · orang ${f(BODY.stature, 1)} m</text>
+      <g class="layer layer-motion">${display}</g>
+      <text class="inset-note" x="${INSET.x + 8}" y="${INSET.y + INSET.h - 4}">1 balok baja = ${f(BLOCK_KG)} kg</text>
     </g>`;
 
   // ---- live readouts (from the sampled state only; limits from r)
@@ -273,13 +273,13 @@ export function render(p, r, s, f) {
 
   // ---- labels
   const st = statusLines(p, r, s, f);
-  const hText = (k) => `${k === 'top' ? 'h₁' : 'h₂'} = ${f(p[k])} m`;
+  const hText = (k) => `${k === 'top' ? 'Awal' : 'Tujuan'} ${f(p[k])} m`;
   const missed = failed && s.phase !== 'buffer' ? ' missed' : '';
   const levelLabels = close
     ? `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.bottom + 30)}">${hText('top')} · <tspan class="${missed}">${hText('bottom')}</tspan></text>`
     : `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.top + 13)}">${hText('top')}</text><text class="level-text${missed}" x="${r1(right + 8)}" y="${r1(floors.bottom + 13)}">${hText('bottom')}</text>`;
 
-  // ---- velocity arrow in the callout's left margin (forces are in the always-visible FBD panel)
+  // ---- velocity arrow in the callout's left margin (forces are in the optional FBD panel)
   const fy = ins.center.y;
   const vx = INSET.x + 7;
 
@@ -289,17 +289,16 @@ export function render(p, r, s, f) {
     <rect class="floor" x="0" y="${GROUND}" width="600" height="28"/>
     ${shaftView}
     ${inset}
-    <g class="lift-readouts">${readouts(GAUGES.desktop)}</g>
-    ${fbdPanel({ ...FBD_DESKTOP, title: 'Gaya pada kabin + muatan' }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}
-    ${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya kabin + muatan (m = ${f(r.totalMass)} kg)` }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}
-    <g class="lift-readouts compact">${readouts(GAUGES.portrait)}</g>
+    <g class="layer layer-forces lift-readouts desktop-detail">${readouts(GAUGES.desktop)}</g>
+    <g class="layer layer-forces desktop-detail">${fbdPanel({ ...FBD_DESKTOP, title: 'Gaya pada kabin + muatan' }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}</g>
+    <g class="layer layer-forces portrait-detail">${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya kabin + muatan (m = ${f(r.totalMass)} kg)` }, fbdForces(p, r, s), fbdNotes(s), f, `lift-fbd${failed ? ' warn' : ''}`)}</g>
+    <g class="layer layer-forces lift-readouts compact portrait-detail">${readouts(GAUGES.portrait)}</g>
     <g class="layer layer-labels">
       ${levelLabels}
-      ${tag(96, 18, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
-      ${tag(96, 42, `muatan = ${f(p.payload)} kg`, failed && p.payload > 0 ? 'warn' : '')}
+      <g class="layer layer-forces desktop-detail">${tag(96, 18, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
       ${tag(96, 66, `P maks = ${f(p.power)} W`, 'accent')}
-      ${tag(96, 90, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}
-      ${statusBox(INSET.x + INSET.w / 2, st.lines, st.cls)}
+      ${tag(96, 90, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}</g>
+      <g class="scene-status">${statusBox(INSET.x + INSET.w / 2, st.lines, st.cls)}</g>
     </g>
     <g class="layer layer-motion">
       ${s.speed > 1e-9 ? arrow(vx, fy, vx, fy + vlen(s.speed, OVERSPEED_TRIP * r.speed, 60, 10), 'velocity', 'v', { labelSide: 'left' }) : ''}
@@ -310,7 +309,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 622' };
+export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 622', cleanDesktop: '180 0 420 380', cleanPortrait: '180 0 420 380' };
 
 /** The ± payload panel: under the left column on desktop, below the scene in portrait. */
 export const loadOffset = { desktop: [-18, 0], portrait: [10, 80] };

@@ -11,7 +11,7 @@
 // Wheels roll without slipping (angle = centre path length / radius); pedals stay still.
 // Force and velocity arrows use fixed scales shared by every setup, so A and B compare honestly.
 // Everything drawn comes from layout()/geometry(), which tests check directly.
-import { arrow, dimV, tag, svg, sub } from './draw.js';
+import { arrow, dimV, svg, sub } from './draw.js';
 import { twoBone, BODY } from './rig.js';
 import { sample, solve, G } from '../physics/models.js';
 import { fbdPanel } from './fbd-panel.js';
@@ -352,9 +352,6 @@ export function render(p, r, s, f) {
     </g>`;
 
   const right = barX + barW;
-  const mText = `m = ${f(p.mass)} kg`, fText = 'tanpa gesekan';
-  const tw = (t) => t.length * 7 + 16;
-  const fX = right - tw(fText) / 2, mX = right - tw(fText) - 6 - tw(mText) / 2;
 
   const bar = scaleBar(L.scale);
   const mag = magnification(p);
@@ -372,15 +369,13 @@ export function render(p, r, s, f) {
     <rect class="ground" x="0" y="${GROUND_Y}" width="600" height="${380 - GROUND_Y}"/>
     <path class="slope-line track" d="M0 ${n1(top.y)}H${n1(top.x)}L${n1(finish.x)} ${GROUND_Y}H600"/>
     <path class="slope-mark" d="${line(add(top, n, 6), add(top, n, -6))}${line(add(finish, n, 6), add(finish, n, -6))}"/>
-    ${fbdSvg(p, r, f)}
+    <g class="layer layer-forces">${fbdSvg(p, r, f)}</g>
     <g class="layer layer-motion strobe">${ghostSvg}${ghostDots}</g>
     ${drawBike(g)}
     <g class="layer layer-labels">
       ${dimV(n1(L.dimX), top.y, GROUND_Y, `h = ${f(p.height)} m`, 'left')}
       ${rotText(lb.l.at, `L = ${f(p.length)} m`, 'slope-label')}
-      ${tag(mX, 20, mText, 'accent')}
-      ${tag(fX, 20, fText)}
-      ${energy}
+      <g class="layer layer-motion">${energy}</g>
       <g class="scale-note">
         <text x="${lb.note.x}" y="${n1(lb.note.y)}">sepeda ±${f(mag, mag < 10 ? 1 : 0)}×</text>
         <text x="${lb.note.x}" y="${n1(lb.note.y + 13)}">lebih besar</text>
@@ -415,7 +410,7 @@ export function render(p, r, s, f) {
 // larger on phones) and reach down to include the diagram.
 // + 24 below the panel: room for the live readout line the workspace overlays at the figure's bottom-left
 const CAMERA = `${VIEW.x} ${VIEW.y} ${VIEW.w} ${FBD.y + FBD.h + 24 - VIEW.y}`;
-export const camera = { desktop: CAMERA, portrait: CAMERA };
+export const camera = { desktop: CAMERA, portrait: CAMERA, cleanDesktop: '40 0 520 380', cleanPortrait: '40 0 520 380' };
 
 // ---------------------------------------------------------------- free-body diagram
 

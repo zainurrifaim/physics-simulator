@@ -369,10 +369,10 @@ export function render(p, r, s, f) {
       ${burst}
     </g>
     ${zone}
-    ${fbdPanel({ ...FBD, title: `Diagram gaya pada dummy (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, r, s, f), f, s.beltIntact ? '' : 'warn')}
+    <g class="layer layer-forces">${fbdPanel({ ...FBD, title: `Diagram gaya pada dummy (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, r, s, f), f, s.beltIntact ? '' : 'warn')}</g>
     <g class="layer layer-labels">
-      ${readout(p, r, s, f)}
-      ${status}
+      <g class="layer layer-forces">${readout(p, r, s, f)}</g>
+      <g class="scene-status">${status}</g>
       ${gapDim}
       <g class="dim sabuk-dim">
         <path d="M${r1(sX)} ${dimY}H${WALL_X}M${r1(sX)} ${dimY - 6}V${dimY + 6}M${WALL_X} ${dimY - 6}V${dimY + 6}"/>

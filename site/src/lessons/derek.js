@@ -20,25 +20,29 @@ export default {
     { key: 'height', label: 'Tinggi angkat', symbol: 'h', unit: 'm', min: 2, max: 30, step: 1 },
     { key: 'time', label: 'Waktu yang diminta', symbol: 't', unit: 's', min: 5, max: 120, step: 1 },
     { key: 'power', label: 'Daya derek', symbol: 'P', unit: 'W', min: 500, max: 50000, step: 500 },
-    { key: 'capacity', label: 'Kapasitas angkat (tambahan model)', symbol: 'm<sub>maks</sub>', unit: 'kg', min: 500, max: 20000, step: 500 },
+    { key: 'capacity', label: 'Batas massa yang bisa diangkat', symbol: 'm<sub>maks</sub>', unit: 'kg', min: 500, max: 20000, step: 500 },
   ],
   formula: 'W = F · s &nbsp;&nbsp; P = W / t',
   assumptions:
-    'Daya derek dianggap seluruhnya menjadi daya mekanik untuk mengangkat (efisiensi ideal). Kotak langsung naik dengan kecepatan tetap (percepatan singkat di awal dan energi kinetiknya diabaikan) sehingga tegangan tali sama dengan gaya berat. Bila daya cukup, derek diatur naik tepat dalam waktu t, jadi daya yang terpakai = W / t. Daya membatasi kecepatan: v maks = P / (m · g). Waktu yang diminta adalah batas: bila daya kurang, waktu habis sebelum kotak sampai di atas (simulasi berhenti di ketinggian yang tercapai). Kapasitas angkat tidak ada di soal asli; ini batas gaya tarik derek sungguhan. Bila berat kotak melebihinya, kotak tidak terangkat sama sekali.',
+    'Derek menggunakan seluruh dayanya untuk mengangkat peti. Peti naik dengan kecepatan tetap, sehingga gaya tarik tali sama dengan gaya berat. Usaha bergantung pada massa dan tinggi. Daya menentukan seberapa cepat usaha itu dilakukan. Jika daya kurang, peti tetap naik tetapi belum mencapai tujuan saat waktu habis. Batas massa adalah pengaturan tambahan pada simulasi. Peti yang melebihi batas ini tetap di lantai. Percepatan singkat ketika mulai dan berhenti diabaikan.',
   compare: {
-    question: 'Derek 20 kW, waktu 50 s. Peti 200 kg atau 10.000 kg — masih mampu?',
-    sub: 'Derek yang sama mengangkat peti setinggi 15 m. Massa B 50 kali massa A. g = 10 m/s².',
+    question: 'Peti mana yang sampai ke atas dalam 50 detik?',
+    sub: 'Kedua derek memiliki daya 20 kW. Tinggi tujuan 15 m.',
+    experimentQuestion: () => 'Peti mana yang mencapai tinggi tujuan tepat waktu?',
+    context: (A, B, f) => A.height === B.height && A.time === B.time && A.power === B.power
+      ? `Tinggi tujuan ${f(A.height)} m dalam ${f(A.time)} detik. Daya tiap derek ${f(A.power / 1000)} kW.`
+      : `A menuju ${f(A.height)} m dalam ${f(A.time)} detik dengan daya ${f(A.power / 1000)} kW. B menuju ${f(B.height)} m dalam ${f(B.time)} detik dengan daya ${f(B.power / 1000)} kW.`,
     options: ['Keduanya mampu', 'Hanya A', 'Hanya B', 'Tidak ada'],
     correct: 1,
     key: 'mass',
     B: { mass: 10000 },
-    tag: (p, f) => `${f(p.mass)} kg`,
-    detail: (p, r, f) => (r.overload ? `${f(p.mass)} kg > kapasitas ${f(p.capacity)} kg ✗ · tidak terangkat` : r.ok ? `butuh ${f(r.required)} W ✓` : `butuh ${f(r.required)} W ✗ · ${f(p.time)} s habis di ${reachedText(p, r, f)} m`),
+    tag: (p, f) => `Peti ${f(p.mass)} kg`,
+    detail: (p, r, f) => (r.overload ? `Peti melebihi batas ${f(p.capacity)} kg. Tidak terangkat.` : r.ok ? `Mencapai ${f(p.height)} m dalam ${f(p.time)} detik.` : `Waktu habis. Peti baru mencapai ${reachedText(p, r, f)} m.`),
     equation: (A, rA, B, rB, f) =>
       `<span class="a">${f(rA.required)} W</span> ≤ ${f(A.power)} W ${rB.ok ? '≥' : '&lt;'} <span class="b">${f(rB.required)} W</span>`,
     caption: (A, rA, B, rB, f) => `P = W / t = m · g · h / t — dengan waktu yang sama, massa ${f(B.mass / A.mass)}× butuh daya ${f(rB.required / rA.required)}×`,
     verdict: (A, rA, B, rB, f) =>
-      rA.ok && !rB.ok ? `Hanya A. Peti B butuh ${f(rB.required)} W; dengan 20 kW peti hanya naik ${f(rB.reached, 1)} m dalam 50 s (perlu ${f(rB.minTime, 1)} s untuk 15 m).` : rA.ok && rB.ok ? 'Keduanya mampu.' : 'Daya derek tidak cukup.',
+      rA.ok && !rB.ok ? `Hanya A sampai tepat waktu. Peti B membutuhkan daya ${f(rB.required)} W. Dengan daya ${f(B.power)} W, peti B baru mencapai ${reachedText(B, rB, f)} m ketika waktu habis.` : rA.ok && rB.ok ? 'Kedua peti sampai tepat waktu.' : 'Bandingkan daya yang dibutuhkan dengan daya tersedia dan batas massa tiap derek.',
     diagram: 'Diagram gaya pada peti',
     // overload: the hoist pulls with its maximum force and the ground supplies the rest (crate stays put)
     forces: (p, r) => r.overload

@@ -164,3 +164,14 @@
 /* the prediction preview must not reveal the forces (and so the answer) before predicting */
 .preview-scene .fbd-panel { display: none; }
 .scene-svg .fbd-panel .fbd-bg { fill: rgba(255, 255, 255, 0.92); stroke: var(--line-strong); }
+
+/* The workspace presents phase messages in the result row below each scene. */
+.interactive-scene .scene-status { display: none; }
+
+/* Keep essential measurements legible when a case occupies a narrow panel. */
+.interactive-scene { container-type: inline-size; }
+@container (max-width: 560px) {
+  .scene-svg .dim text, .scene-svg .level-text, .scene-svg .slope-label { font-size: 16px; }
+  .scene-svg .floor-text { font-size: 14px; }
+  .scene-svg .scale-note text, .scene-svg .inset-note { font-size: 13px; }
+}

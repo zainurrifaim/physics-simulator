@@ -17,21 +17,25 @@ export default {
   ],
   formula: 'E<sub>p</sub> = m · g · h',
   assumptions:
-    'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel mulai dan berhenti dengan lembut: gaya angkat lebih besar dari berat saat mempercepat dan lebih kecil saat memperlambat (pada angkatan cepat bisa berbeda sampai sekitar ⅔ berat), tetapi usaha totalnya tetap m · g · h. h diukur dari posisi barbel di lantai. Atlet kelas ringan setinggi 1,6 m menjangkau sekitar 1,86 m di atas lantai, jadi tinggi angkat dibatasi 1,6 m. Menahan barbel diam tidak memerlukan usaha (perpindahan nol). Bila energi habis sebelum target, barbel berhenti lalu dilepas dan jatuh bebas. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
+    'Seluruh energi atlet digunakan untuk mengangkat barbel. Energi yang dibutuhkan adalah massa × gravitasi × tinggi angkat. Barbel mulai dan berhenti dengan lembut, sehingga gaya angkat berubah saat barbel mempercepat atau memperlambat. Tinggi diukur dari posisi awal barbel di lantai. Saat energi habis, barbel berhenti, dilepas, lalu jatuh. Menahan barbel diam menghasilkan usaha mekanik nol karena barbel tidak berpindah, meskipun otot tetap menggunakan energi. Model ini menghitung kecukupan energi dan menganggap atlet mampu menghasilkan gaya angkat yang diperlukan.',
   compare: {
-    question: 'Energi atlet 500 J. Barbel 20 kg atau 40 kg — mana yang sampai ke atas kepala?',
-    sub: 'Atlet yang sama mengangkat barbel setinggi 1,5 m. Massa B dua kali massa A. g = 10 m/s².',
+    question: 'Barbel mana yang bisa diangkat sampai ke atas kepala?',
+    sub: 'Tinggi tujuan 1,5 m. Setiap atlet memiliki energi 500 J.',
+    experimentQuestion: () => 'Barbel mana yang mencapai tinggi tujuan?',
+    context: (A, B, f) => A.height === B.height && A.energy === B.energy
+      ? `Tinggi tujuan ${f(A.height)} m. Energi tersedia ${f(A.energy)} J pada setiap atlet.`
+      : `A menuju ${f(A.height)} m dengan ${f(A.energy)} J. B menuju ${f(B.height)} m dengan ${f(B.energy)} J.`,
     options: ['Keduanya', 'Hanya A', 'Hanya B', 'Tidak ada'],
     correct: 1,
     key: 'mass',
     B: { mass: 40 },
-    tag: (p, f) => `${f(p.mass)} kg`,
-    detail: (p, r, f) => (r.ok ? `butuh ${f(r.work)} J ✓` : `butuh ${f(r.work)} J ✗ · energi habis di ${f(r.reachable, 2)} m, barbel jatuh`),
+    tag: (p, f) => `Barbel ${f(p.mass)} kg`,
+    detail: (p, r, f) => (r.ok ? `Mencapai ${f(p.height)} m. Energi terpakai ${f(r.work)} J.` : `Energi habis di ${f(r.reachable, 2)} m. Barbel jatuh.`),
     equation: (A, rA, B, rB, f) =>
       `<span class="a">${f(rA.work)} J</span> &lt; ${f(A.energy)} J ${rB.work > B.energy ? '&lt;' : '≥'} <span class="b">${f(rB.work)} J</span>`,
     caption: (A, rA, B, rB, f) => `E<sub>p</sub> = m · g · h — massa ${f(B.mass / A.mass, 2)}×, energi yang dibutuhkan ${f(rB.work / rA.work, 2)}×`,
     verdict: (A, rA, B, rB, f) =>
-      rA.ok && !rB.ok ? 'Hanya A. Massa dua kali lipat butuh energi dua kali lipat — 600 J melebihi 500 J.' : rA.ok && rB.ok ? 'Keduanya cukup.' : !rA.ok && !rB.ok ? 'Tidak ada yang cukup.' : 'Hanya B.',
+      rA.ok && !rB.ok ? `Hanya A mencapai tujuan. Barbel B membutuhkan ${f(rB.work)} J, melebihi energi tersedia ${f(B.energy)} J. Pada tinggi yang sama, massa dua kali lipat membutuhkan energi dua kali lipat.` : rA.ok && rB.ok ? 'Kedua barbel mencapai tinggi tujuan.' : !rA.ok && !rB.ok ? 'Energi kedua atlet habis sebelum barbel mencapai tujuan.' : 'Hanya B mencapai tujuan.',
     diagram: 'Diagram gaya pada barbel (saat ditahan / kecepatan tetap)',
     forces: (p, r) => [
       { dx: 0, dy: -1, value: r.weight, label: 'F' },

@@ -5,8 +5,7 @@ import { scene } from '../scenes/index.js';
 import { compareChart } from '../components/chart.js';
 import { forceDiagram } from '../components/fbd.js';
 import { mountWorksheet } from '../components/worksheet.js';
-import { mountInteraction, editParameter, isOriginalComparison, comparisonValue, sceneCamera } from '../components/interaction.js';
-import { reducedMotion } from '../components/fx.js';
+import { mountInteraction, editParameter, isOriginalComparison, comparisonValue, sceneViewport } from '../components/interaction.js';
 import { fmt } from '../format.js';
 import * as store from '../state/storage.js';
 
@@ -28,7 +27,7 @@ export function renderWorkspace(main, lesson) {
     A: fitFields(lesson, { ...lesson.preset, ...draft.params }), B: fitFields(lesson, { ...lesson.preset, ...cmp.B, ...draft.paramsB }),
     step: 1, task: Math.max(0, Math.min(3, Math.floor(Number(draft.task)) || 0)),
     activeCase: draft.activeCase === 'B' ? 'B' : 'A', t: Number(draft.time) || 0, playing: false,
-    analysis: 'graph', view: 'single',
+    analysis: 'graph', view: 'compare',
   };
   let raf = 0, last = null;
   function recompute() { st.rA = solve(lesson.id, st.A); st.rB = solve(lesson.id, st.B); }
@@ -55,10 +54,10 @@ export function renderWorkspace(main, lesson) {
         <div class="prediction-answer"><div class="poll-options" role="group" aria-label="Prediksi">${cmp.options.map((o, i) => `<button class="button ghost" data-poll="${i}" aria-pressed="false">${o}</button>`).join('')}</div><p id="prediction-feedback" role="status"></p></div>
       </section>
       <section class="learning-page experiment-page" data-page="1" aria-labelledby="experiment-title" hidden>
-        <h2 id="experiment-title" class="sr-only" tabindex="-1">${lesson.title}</h2>
-        <div class="scene-view-switch" role="group" aria-label="Tampilan simulasi">${['A', 'B'].map((c) => `<button data-case-select="${c}" data-view="single" aria-pressed="false">${c}</button>`).join('')}<button data-view="compare" aria-pressed="false">A/B</button></div>
+        <div class="experiment-intro"><div><h2 id="experiment-title" tabindex="-1"></h2><p id="experiment-context"></p></div><div class="experiment-tools"><label class="force-toggle"><input type="checkbox" data-layer="forces"> Gaya</label>
+        <div class="scene-view-switch" role="group" aria-label="Tampilan simulasi">${['A', 'B'].map((c) => `<button data-case-select="${c}" data-view="single" aria-pressed="false">${c}</button>`).join('')}<button data-view="compare" aria-pressed="false">A/B</button></div></div></div>
         <div class="experiment-body"><div class="experiment-visuals">
-          <div class="experiment-scenes">${['A', 'B'].map((c) => `<figure class="case case-${c.toLowerCase()}" data-case-figure="${c}"><figcaption><b class="case-letter">${c}</b><span id="tag-${c}"></span></figcaption><div class="interactive-scene stage-layers show-labels" id="scene-${c}"><div class="scene-art"></div></div><p class="case-result" id="detail-${c}"></p></figure>`).join('')}</div>
+          <div class="experiment-scenes">${['A', 'B'].map((c) => `<figure class="case case-${c.toLowerCase()}" data-case-figure="${c}"><figcaption><b class="case-letter">${c}</b><span id="tag-${c}"></span>${lesson.interaction.load ? `<div class="load-controls"><button data-load-case="${c}" data-load-change="-1" aria-label="Kurangi massa ${c}">−</button><button data-load-case="${c}" data-load-change="1" aria-label="Tambah massa ${c}">+</button></div>` : ''}</figcaption><div class="interactive-scene stage-layers show-labels" id="scene-${c}"><div class="scene-art"></div></div><p class="case-result" id="detail-${c}"></p></figure>`).join('')}</div>
           <div class="play-controls"><button class="button primary" data-act="play">Jalankan</button><input type="range" id="timeline" min="0" max="1000" value="0" aria-label="Waktu simulasi"><output id="clock"></output><button class="button ghost" data-act="restart" aria-label="Ulangi gerakan">↺</button></div>
         </div></div>
       </section>
@@ -67,7 +66,7 @@ export function renderWorkspace(main, lesson) {
         <div id="explanation-lock"><p>Prediksi dulu, atau buka penjelasannya sekarang.</p><button class="button primary" data-act="reveal">Tampilkan penjelasan</button></div>
         <div id="explanation-content" hidden><div class="explanation-toolbar"><div class="comparison-equation" id="equation"></div>
           <select class="analysis-select" aria-label="Tampilan penjelasan">${[['graph', 'Grafik'], ['forces', 'Diagram gaya'], ['worked', 'Perhitungan']].map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select><button class="button ghost" data-act="notes">Detail</button></div>
-          <div class="analysis-view" id="analysis-view"></div>
+          <p class="explanation-summary" id="explanation-summary"></p><div class="analysis-view" id="analysis-view"></div>
         </div>
       </section>
       <section class="learning-page practice-page" data-page="3" aria-labelledby="practice-title" hidden>
@@ -79,10 +78,10 @@ export function renderWorkspace(main, lesson) {
     <dialog class="workspace-dialog" id="experiment-settings" aria-labelledby="controls-title"><header><h2 id="controls-title"></h2><button class="icon-button" data-close-dialog aria-label="Tutup pengaturan">×</button></header>
       <div class="case-switch" role="group" aria-label="Situasi yang diedit">${['A', 'B'].map((c) => `<button data-case-select="${c}" aria-pressed="false">${c} <span id="summary-${c}"></span></button>`).join('')}</div>
       <p class="interaction-hint">${lesson.interaction.hint}</p><div id="primary-fields"></div>
-      <details class="other-parameters"><summary>Besaran lain</summary><div id="secondary-fields"></div></details>
-      <div class="overlay-controls"><label><input type="checkbox" data-layer="labels" checked> Label</label><label><input type="checkbox" data-layer="forces"> Gaya</label><label><input type="checkbox" data-layer="motion"> Gerak</label></div>
-      <p class="constraint-note">${lesson.id === 'sepeda' ? 'Tinggi bukit ≤ 0,7 × panjang lintasan (sin θ ≤ 0,7, θ ≤ 44,4°).' : lesson.id === 'lift' ? 'Lantai awal harus di atas lantai akhir.' : 'Model ideal · g = 10 m/s²'}</p>
-      <button class="button ghost" data-act="preset">Reset A &amp; B</button><p class="error" id="param-error" role="alert"></p>
+      <details class="other-parameters"><summary>Pengaturan lain</summary><div id="secondary-fields"></div></details>
+      <div class="overlay-controls"><label><input type="checkbox" data-layer="labels" checked> Label</label><label><input type="checkbox" data-layer="motion"> Gerak</label></div>
+      <p class="constraint-note">${lesson.id === 'sepeda' ? 'Tinggi bukit paling besar 70% dari panjang lintasan.' : lesson.id === 'lift' ? 'Lantai awal harus di atas lantai akhir.' : 'Model ideal · g = 10 m/s²'}</p>
+      <button class="button ghost" data-act="preset">Kembalikan soal awal</button><p class="error" id="param-error" role="alert"></p>
     </dialog>
     <dialog class="workspace-dialog" id="explanation-notes" aria-labelledby="notes-title"><header><h2 id="notes-title">Penjelasan</h2><button class="icon-button" data-close-dialog aria-label="Tutup penjelasan">×</button></header><p id="eq-caption"></p><p id="verdict"></p><h3>Asumsi model</h3><p>${lesson.assumptions}</p></dialog>`;
   const $ = (selector) => main.querySelector(selector);
@@ -95,10 +94,14 @@ export function renderWorkspace(main, lesson) {
     store.save();
   }
   function renderScenes() {
+    $('#experiment-title').textContent = cmp.experimentQuestion(st.A, st.B, fmt);
+    $('#experiment-context').textContent = cmp.context(st.A, st.B, fmt);
     for (const c of ['A', 'B']) {
+      const host = $(`#scene-${c}`);
+      host.classList.toggle('portrait-scene', sceneViewport(host, lesson.id).portrait);
       const state = sample(lesson.id, st[c], st[`r${c}`], st.t);
       $(`#scene-${c} .scene-art`).innerHTML = scene(lesson.id, st[c], st[`r${c}`], state);
-      $(`#scene-${c} .scene-art svg`).setAttribute('viewBox', sceneCamera(lesson.id, window.matchMedia('(max-width: 600px)').matches));
+      $(`#scene-${c} .scene-art svg`).setAttribute('viewBox', sceneViewport($(`#scene-${c}`), lesson.id).camera);
       interactions[c].update();
       $(`#tag-${c}`).textContent = cmp.tag(st[c], fmt);
       $(`#summary-${c}`).textContent = cmp.tag(st[c], fmt);
@@ -111,7 +114,8 @@ export function renderWorkspace(main, lesson) {
     // playback always lasts ~5 s of wall time; say how much slower/faster than real time that is
     const rate = total() / 5;
     const pace = Math.abs(rate - 1) < 0.05 ? '' : rate < 1 ? ` · gerak lambat ×${fmt(1 / rate, 0)}` : ` · dipercepat ×${fmt(rate, 0)}`;
-    $('#clock').textContent = `${fmt(st.t, total() < 1 ? 3 : 1)} s${pace}`;
+    $('#clock').textContent = `${fmt(st.t, total() < 1 ? 3 : st.t > 0 && st.t < 0.1 ? 2 : 1)} s`;
+    $('#clock').title = `Waktu simulasi${pace}`;
     $('[data-act="play"]').textContent = st.playing ? 'Jeda' : st.t >= total() ? 'Putar ulang' : 'Jalankan';
   }
   function field(f) {
@@ -149,8 +153,9 @@ export function renderWorkspace(main, lesson) {
     // Preset prose contains fixed ratios. Custom setups use independent, exact results.
     const a = comparisonValue(lesson.id, st.rA), b = comparisonValue(lesson.id, st.rB);
     $('#equation').innerHTML = original() ? cmp.equation(st.A, st.rA, st.B, st.rB, fmt) : `<span class="a">A: ${a.label ? `${a.label} ` : ''}${fmt(a.value)} ${a.unit}</span><span class="b">B: ${b.label ? `${b.label} ` : ''}${fmt(b.value)} ${b.unit}</span>`;
-    $('#eq-caption').innerHTML = original() ? cmp.caption(st.A, st.rA, st.B, st.rB, fmt) : `Setup pilihanmu · ${lesson.formula}`;
-    $('#verdict').textContent = original() ? `${draft.prediction === undefined ? '' : draft.prediction === cmp.correct ? 'Prediksimu tepat. ' : 'Bandingkan dengan prediksimu. '}${cmp.verdict(st.A, st.rA, st.B, st.rB, fmt)}` : `A: ${cmp.detail(st.A, st.rA, fmt)}. B: ${cmp.detail(st.B, st.rB, fmt)}. Prediksi di awal berlaku untuk soal awal.`;
+    $('#eq-caption').innerHTML = original() ? cmp.caption(st.A, st.rA, st.B, st.rB, fmt) : `Hasil pengaturanmu · ${lesson.formula}`;
+    $('#verdict').textContent = original() ? `${draft.prediction === undefined ? '' : draft.prediction === cmp.correct ? 'Prediksimu tepat. ' : 'Bandingkan dengan prediksimu. '}${cmp.verdict(st.A, st.rA, st.B, st.rB, fmt)}` : `A: ${cmp.detail(st.A, st.rA, fmt)} B: ${cmp.detail(st.B, st.rB, fmt)} Prediksi di awal berlaku untuk soal awal.`;
+    $('#explanation-summary').textContent = $('#verdict').textContent;
     $('.analysis-select').value = st.analysis;
     const portrait = window.matchMedia('(max-width: 600px)').matches;
     $('#analysis-view').innerHTML = st.analysis === 'graph' ? compareChart(lesson, cases(), total(), st.t, { reveal: true, tall: portrait }) : st.analysis === 'forces' ? forceDiagram(lesson, cases(), { stacked: portrait }) : ['A', 'B'].map((c) => `<h3 class="case-${c.toLowerCase()}">Perhitungan situasi ${c}</h3><ol class="worked">${lesson.worked(st[c], st[`r${c}`], fmt).map((line) => `<li>${line}</li>`).join('')}</ol>`).join('');
@@ -186,7 +191,8 @@ export function renderWorkspace(main, lesson) {
     // 0,07 s of a 100 s descent) play at 1/50 of real time so they can actually be seen
     const brief = ['A', 'B'].some((c) => SLOW_PHASES.has(sample(lesson.id, st[c], st[`r${c}`], st.t).phase));
     const rate = brief ? Math.min(total() / 5, 0.02) : total() / 5;
-    if (last !== null) st.t = advance(st.t, (now - last) / 1000, rate, total());
+    // A delayed frame must not skip the experiment after a stalled or suspended tab.
+    if (last !== null) st.t = advance(st.t, Math.min((now - last) / 1000, 0.1), rate, total());
     last = now;
     if (st.t >= total()) { pause(); persist(); }
     renderScenes();
@@ -196,8 +202,9 @@ export function renderWorkspace(main, lesson) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.task !== undefined) { st.task = Number(b.dataset.task); renderTask(); renderNavigation(); persist(); }
     else if (b.dataset.poll !== undefined) { draft.prediction = Number(b.dataset.poll); draft.revealed = true; store.save(); renderPrediction(); }
-    else if (b.dataset.caseSelect) { st.activeCase = b.dataset.caseSelect; if (b.dataset.view) st.view = b.dataset.view; renderControls(); persist(); }
-    else if (b.dataset.view) { st.view = b.dataset.view; renderControls(); }
+    else if (b.dataset.loadCase) { update(b.dataset.loadCase, lesson.interaction.load, st[b.dataset.loadCase][lesson.interaction.load] + Number(b.dataset.loadChange) * lesson.interaction.increment); }
+    else if (b.dataset.caseSelect) { st.activeCase = b.dataset.caseSelect; if (b.dataset.view) st.view = b.dataset.view; renderControls(); renderScenes(); persist(); }
+    else if (b.dataset.view) { st.view = b.dataset.view; renderControls(); renderScenes(); }
     else if (b.dataset.closeDialog !== undefined) b.closest('dialog').close();
     else if (b.dataset.act === 'settings') { pause(); renderScenes(); $('#experiment-settings').showModal(); }
     else if (b.dataset.act === 'notes') $('#explanation-notes').showModal();
@@ -205,7 +212,15 @@ export function renderWorkspace(main, lesson) {
     else if (b.dataset.act === 'previous') { if (st.step === 3 && st.task > 0) { st.task--; renderTask(); renderNavigation(); persist(); } else go(st.step - 1); }
     else if (b.dataset.act === 'next') { if (st.step === 3 && st.task < 3) { st.task++; renderTask(); renderNavigation(); persist(); } else go(st.step + 1); }
     else if (b.dataset.act === 'play') {
-      if (st.playing) { pause(); renderScenes(); persist(); } else if (reducedMotion()) { st.t = total(); renderScenes(); persist(); } else { if (st.t >= total()) st.t = 0; st.playing = true; last = null; raf = requestAnimationFrame(loop); }
+      if (st.playing) {
+        pause(); renderScenes(); persist();
+      } else {
+        if (st.t >= total()) st.t = 0;
+        st.playing = true;
+        last = null;
+        renderScenes();
+        raf = requestAnimationFrame(loop);
+      }
     } else if (b.dataset.act === 'restart') { pause(); st.t = 0; renderScenes(); persist(); }
     else if (b.dataset.act === 'preset') {
       pause(); Object.values(interactions).forEach((i) => i.cancel()); st.A = { ...lesson.preset }; st.B = { ...lesson.preset, ...cmp.B }; st.t = 0;
@@ -218,16 +233,27 @@ export function renderWorkspace(main, lesson) {
     if (t.matches('.step-select')) go(Number(t.value));
     if (t.matches('.analysis-select')) { st.analysis = t.value; renderExplanation(); }
     if (t.dataset.param) { update(st.activeCase, t.dataset.param, t.value === '' ? NaN : Number(t.value)); t.value = st[st.activeCase][t.dataset.param]; }
-    if (t.dataset.layer) for (const host of main.querySelectorAll('.interactive-scene')) host.classList.toggle(`show-${t.dataset.layer}`, t.checked);
+    if (t.dataset.layer) {
+      for (const host of main.querySelectorAll('.interactive-scene')) host.classList.toggle(`show-${t.dataset.layer}`, t.checked);
+      renderScenes();
+    }
   });
   main.addEventListener('input', (e) => {
     const input = e.target;
     if (input.dataset.param && input.value !== '' && Number.isFinite(input.valueAsNumber)) update(st.activeCase, input.dataset.param, input.valueAsNumber);
   });
   const cameraMedia = window.matchMedia('(max-width: 600px)');
+  function visibilityChanged() {
+    if (document.hidden && st.playing) {
+      pause(); renderScenes(); persist();
+    }
+  }
+  document.addEventListener('visibilitychange', visibilityChanged);
   function resizeViews() { renderScenes(); if (st.step === 2) renderExplanation(); }
   cameraMedia.addEventListener('change', resizeViews);
+  const sceneObserver = new ResizeObserver(() => renderScenes());
+  for (const host of main.querySelectorAll('.interactive-scene')) sceneObserver.observe(host);
   $('#timeline').addEventListener('input', (e) => { pause(); st.t = Number(e.target.value) / 1000 * total(); renderScenes(); persist(); });
   renderControls(); renderPrediction(); go(1, false);
-  return () => { pause(); cameraMedia.removeEventListener('change', resizeViews); Object.values(interactions).forEach((i) => i.cancel()); persist(); };
+  return () => { pause(); sceneObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChanged); cameraMedia.removeEventListener('change', resizeViews); Object.values(interactions).forEach((i) => i.cancel()); persist(); };
 }

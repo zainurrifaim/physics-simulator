@@ -17,7 +17,7 @@ function posterCard(l, done) {
   return `<a class="poster-card" href="#sim/${l.id}">
     <span class="poster-card-q">${l.compare.question}</span>
     <div class="mini-cases">${miniCase(l, 'a')}${miniCase(l, 'b')}</div>
-    <span class="poster-card-foot"><span>${l.number} · ${l.short}</span>${done ? `<span class="done">${icon('check')} Selesai</span>` : `<span>${l.minutes} menit ${icon('arrow')}</span>`}</span>
+    <span class="poster-card-foot"><span>${l.short}</span>${done ? `<span class="done">${icon('check')} Selesai</span>` : `<span>Buka ${icon('arrow')}</span>`}</span>
   </a>`;
 }
 
@@ -26,21 +26,19 @@ export function renderHome(main) {
   main.innerHTML = `
     <section class="home-hero">
       <div class="hero-copy">
-        <span class="eyebrow">USAHA &amp; ENERGI</span>
-        <h1>Belajar fisika dengan mencoba.</h1>
-        <p>Tambahkan beban, ubah tinggi, atau atur jarak pengereman langsung di dalam simulasi. Bandingkan A dan B, lalu jelaskan hasilnya.</p>
+        <h1>Simulasi usaha dan energi</h1>
+        <p>Ubah beban, tinggi, atau kecepatan. Bandingkan gerak A dan B, lalu pelajari gaya dan energi yang menjelaskan hasilnya.</p>
         <div class="hero-actions">
-          <a href="#sim/${lessons[0].id}" class="button primary">Mulai eksperimen pertama ${icon('arrow')}</a>
+          <a href="#sim/${lessons[0].id}" class="button primary">Mulai simulasi ${icon('arrow')}</a>
           <a href="#konsep" class="button ghost">Konsep dasar</a>
         </div>
-        <div class="hero-meta"><span><b class="a-dot"></b> A = soal asli</span><span><b class="b-dot"></b> B = pembanding</span><span>${icon('clock')} ±90 menit</span></div>
+        <div class="hero-meta"><span><b class="a-dot"></b> A · soal awal</span><span><b class="b-dot"></b> B · pembanding</span></div>
       </div>
     </section>
 
     <section class="catalog" aria-labelledby="catalog-title">
       <div class="section-heading">
-        <div><span class="eyebrow">LIMA PERTANYAAN</span><h2 id="catalog-title">Usaha dan energi di sekitar kita</h2></div>
-        <span class="muted section-note">Pilih satu untuk mulai mencoba.</span>
+        <h2 id="catalog-title">Pilih simulasi</h2>
       </div>
       <div class="poster-grid">${lessons.map((l) => posterCard(l, progress[l.id]?.done)).join('')}</div>
     </section>`;

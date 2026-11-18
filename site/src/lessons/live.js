@@ -4,13 +4,13 @@
 
 export const live = {
   angkat: (p, r, s, f) =>
-    `h = ${f(s.position, 2)} m · Eₚ = ${f(s.potential, 0)} J${s.phase === 'drop' ? ` · Eₖ = ${f(s.kinetic, 0)} J (jatuh)` : ''} · energi terpakai ${f(s.athleteWork, 0)} / ${f(p.energy)} J`,
+    `Tinggi barbel ${f(s.position, 2)} m${{ struggle: ' · Energi habis', drop: ' · Barbel jatuh', dropped: ' · Barbel kembali ke lantai', hold: ' · Tinggi tujuan tercapai' }[s.phase] ?? ''}`,
   derek: (p, r, s, f) =>
-    `t = ${f(s.t, 1)} s · h = ${f(s.position, 2)} m · v = ${f(s.speed, 3)} m/s · P = ${f(s.power, 0)} / ${f(p.power)} W`,
+    `Tinggi peti ${f(s.position, 2)} m${{ stall: ' · Melebihi batas massa derek', timeout: ' · Waktu habis', arrived: ' · Sampai ke tujuan' }[s.phase] ?? ''}`,
   lift: (p, r, s, f) =>
-    `h = ${f(s.position, 2)} m · v = ${f(s.speed, 3)} m/s · daya rem mesin ${f(s.drivePower, 0)} / ${f(p.power)} W${{ overspeed: ' · rem mesin kurang kuat, makin cepat', braking: ' · rem darurat menahan', stopped: ' · rem darurat aktif, kabin berhenti', buffer: ' · menghantam peredam' }[s.phase] ?? ''}`,
+    `Ketinggian lift ${f(s.position, 2)} m${s.t <= 0 ? '' : { overspeed: ' · Rem mesin kurang kuat', braking: ' · Rem darurat aktif', stopped: ' · Lift berhenti', buffer: ' · Mengenai peredam di dasar', arrived: ' · Sampai ke tujuan' }[s.phase] ?? ''}`,
   sabuk: (p, r, s, f) =>
-    `t = ${f(s.t * 1000, 0)} ms · v mobil ${f(s.speed, 1)} m/s · v dummy ${f(s.dummySpeed, 1)} m/s${s.beltIntact ? ` · F sabuk ${f(s.beltForce, 0)} N` : ' · sabuk robek'}`,
+    `Kecepatan mobil ${f(s.speed * 3.6, 1)} km/jam${{ torn: ' · Sabuk robek', impact: ' · Boneka membentur dasbor', stopped: ' · Sabuk menahan boneka', braking: ' · Mobil melambat' }[s.phase] ?? ''}`,
   sepeda: (p, r, s, f) =>
-    `t = ${f(s.t, 1)} s · v = ${f(s.speed, 1)} m/s · E${'ₚ'} + E${'ₖ'} = ${f(s.potential, 0)} + ${f(s.kinetic, 0)} = ${f(s.potential + s.kinetic, 0)} J`,
+    `Kecepatan ${f(s.speed, 1)} m/s${s.phase === 'arrived' ? ` · Sampai dalam ${f(r.duration, 2)} detik` : ''}`,
 };

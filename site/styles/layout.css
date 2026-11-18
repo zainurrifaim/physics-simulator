@@ -30,10 +30,11 @@
   place-items: center;
   width: 44px; height: 44px;
   border-radius: 12px;
-  background: var(--accent);
-  color: #fff;
+  background: transparent;
+  flex-shrink: 0;
 }
-.brand-icon .icon { width: 24px; height: 24px; }
+.brand-logo { display: block; width: 26px; height: 28px; object-fit: contain; flex-shrink: 0; }
+.brand-icon .brand-logo { width: 33px; height: 36px; }
 .brand-text { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
 .brand-text span { font-weight: 400; }
 .brand-text small { display: block; margin-top: 3px; font-size: 0.55rem; letter-spacing: 0.18em; font-weight: 600; color: var(--muted); }

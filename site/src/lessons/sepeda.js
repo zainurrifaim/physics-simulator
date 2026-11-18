@@ -1,6 +1,6 @@
 export default {
   id: 'sepeda',
-  interaction: { handles: ['height', 'length'], load: 'mass', increment: 10, hint: 'Seret h untuk tinggi bukit dan L untuk panjang lintasan. + atau − mengubah massa.' },
+  interaction: { handles: ['height', 'length'], load: 'mass', increment: 10, hint: 'Seret penanda tinggi bukit atau panjang lintasan. Tombol + dan − mengubah massa sepeda dan pengendara.' },
   number: '05',
   short: 'Sepeda',
   title: 'Sepeda Menuruni Bukit',
@@ -17,21 +17,25 @@ export default {
   ],
   formula: 'mgh = ½mv² &nbsp;&nbsp; t = s / v̄',
   assumptions:
-    'Mulai dari diam, lintasan lurus dengan kemiringan tetap, tanpa mengayuh, tanpa gesekan dan hambatan udara, dan sepeda dianggap titik. Roda digambar menggelinding tanpa selip; karena massa roda diabaikan, roda berputar tanpa memerlukan gaya gesek dan tidak menyimpan energi putar. Panjang lintasan L diukur sepanjang lereng. Karena kemiringan tetap, percepatan konstan sehingga kecepatan rata-rata = (0 + v)/2. Untuk bukit melengkung, tinggi dan panjang saja tidak cukup untuk menentukan waktu.',
+    'Sepeda mulai dari diam, tanpa mengayuh. Lintasan lurus dengan kemiringan tetap. Gesekan dan hambatan udara diabaikan. Energi potensial berubah menjadi energi gerak saat sepeda turun. Massa dan energi putar roda diabaikan. Panjang lintasan diukur sepanjang lereng. Karena percepatannya tetap, kecepatan rata-rata sama dengan setengah kecepatan di dasar bukit. Pada lintasan melengkung, tinggi dan panjang saja belum cukup untuk menentukan waktu tempuh.',
   compare: {
-    question: 'Pengendara + sepeda 2× lebih berat. Sampai di dasar bukit lebih cepat?',
-    sub: 'Bukit 80 m, lintasan lurus 160 m (diukur sepanjang lereng), mulai dari diam, tanpa gesekan. g = 10 m/s².',
-    options: ['B lebih cepat', 'Sama saja', 'B lebih lambat'],
+    question: 'Massa sepeda dan pengendara dua kali lipat. Siapa yang sampai duluan?',
+    sub: 'Keduanya mulai dari diam pada bukit yang sama, tanpa mengayuh atau gesekan.',
+    experimentQuestion: () => 'Siapa yang sampai di dasar bukit lebih dulu?',
+    context: (A, B, f) => A.height === B.height && A.length === B.length
+      ? `Bukit ${f(A.height)} m dengan lintasan ${f(A.length)} m. Mulai dari diam, tanpa mengayuh atau gesekan.`
+      : `A di bukit ${f(A.height)} m, lintasan ${f(A.length)} m. B di bukit ${f(B.height)} m, lintasan ${f(B.length)} m. Mulai dari diam, tanpa gesekan.`,
+    options: ['B lebih dulu', 'Bersamaan', 'A lebih dulu'],
     correct: 1,
     key: 'mass',
     B: { mass: 160 },
-    tag: (p, f) => `${f(p.mass)} kg`,
-    detail: (p, r, f) => `${f(r.duration, 2)} s · ${f(r.energy)} J`,
+    tag: (p, f) => `Sepeda dan pengendara ${f(p.mass)} kg`,
+    detail: (p, r, f) => `Sampai dalam ${f(r.duration, 2)} detik.`,
     equation: (A, rA, B, rB, f) =>
       `<span class="a">${f(rA.duration, 2)} s</span> = <span class="b">${f(rB.duration, 2)} s</span>`,
     caption: (A, rA, B, rB, f) => `mgh = ½mv² → v = √(2gh) = ${f(rA.speed, 2)} m/s; massa saling menghilangkan. Energinya ${f(rB.energy / rA.energy, 2)}× lebih besar.`,
     verdict: (A, rA, B, rB, f) =>
-      Math.abs(rA.duration - rB.duration) < 1e-9 ? 'Sama saja (dalam model ini)! Gaya beratnya 2× lebih besar, tetapi massa yang harus dipercepat juga 2×, jadi a = g sin θ tetap sama. Massa hanya mengubah energinya. (Di jalan sungguhan, hambatan udara membuat pengendara yang lebih berat sedikit lebih cepat.)' : 'Waktunya berbeda karena bukitnya berbeda.',
+      Math.abs(rA.duration - rB.duration) < 1e-9 ? 'Keduanya sampai bersamaan. Pada bukit yang sama dan tanpa gesekan, massa tidak mengubah waktu tempuh. Gaya berat dan massa bertambah dengan perbandingan yang sama, sehingga percepatannya tetap sama.' : 'Waktu tempuh berbeda karena bentuk bukitnya berbeda.',
     diagram: 'Diagram gaya pada pengendara',
     forces: (p, r) => [
       { dx: 0, dy: 1, value: r.weight, label: 'F<tspan class="sub" dy="4">g</tspan>' },

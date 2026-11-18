@@ -14,7 +14,7 @@ let cleanup = null;
 function shell() {
   app.innerHTML = `
     <aside class="sidebar" id="sidebar" inert>
-      <a class="brand" href="#home"><span class="brand-icon">${icon('atom')}</span><span class="brand-text">ruang<span>fisika</span><small>LABORATORIUM INTERAKTIF</small></span></a>
+      <a class="brand" href="#home" aria-label="Ruang Fisika"><span class="brand-icon"><img class="brand-logo" src="./assets/favicon.svg" width="33" height="36" alt=""></span><span class="brand-text">ruang<span>fisika</span></span></a>
       <div class="side-section">RUANG BELAJAR</div>
       <nav aria-label="Navigasi utama">
         <a href="#home" class="nav-link" data-route="home">${icon('grid')} Jelajahi simulasi</a>
@@ -26,13 +26,13 @@ function shell() {
         ${lessons.map((l) => `<a href="#sim/${l.id}" class="module-link" data-route="${l.id}"><span class="module-number">${l.number}</span>${l.short}<span class="module-tick" data-tick="${l.id}"></span></a>`).join('')}
       </nav>
       <div class="sidebar-bottom">
-        <div class="progress-card"><div class="progress-heading">Sedikit demi sedikit.<span id="progress-count"></span></div><div class="progress-track"><span id="progress-bar"></span></div><p>Setiap eksperimen membuka cara baru melihat dunia.</p></div>
+        <div class="progress-card"><div class="progress-heading">Latihan selesai<span id="progress-count"></span></div><div class="progress-track"><span id="progress-bar"></span></div></div>
       </div>
     </aside>
     <div class="app-body">
       <header class="topbar">
         <button class="icon-button menu-button" data-action="menu" aria-label="Buka menu" aria-expanded="false" aria-controls="sidebar">${icon('menu')}</button>
-        <a href="#home" class="mobile-brand">${icon('atom')} ruang<span>fisika</span></a>
+        <a href="#home" class="mobile-brand" aria-label="Ruang Fisika"><img class="brand-logo" src="./assets/favicon.svg" width="26" height="28" alt=""> ruang<span>fisika</span></a>
         <div class="breadcrumb" id="breadcrumb"></div>
         <div class="top-actions">
           <span class="course-label"><i></i> Fisika · Usaha &amp; Energi</span>
@@ -40,7 +40,7 @@ function shell() {
         </div>
       </header>
       <main id="main" tabindex="-1"></main>
-      <footer class="main-footer"><span>ruangfisika — belajar dari hal-hal di sekitar kita.</span><span>Model ideal · g = 10 m/s²</span></footer>
+      <footer class="main-footer"><span>Ruang Fisika</span><span>Model ideal · g = 10 m/s²</span></footer>
     </div>
     <div class="scrim" data-action="menu-close"></div>`;
 }

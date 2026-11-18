@@ -1,6 +1,6 @@
 export default {
   id: 'sabuk',
-  interaction: { handles: ['speed', 'distance'], hint: 'Seret penanda v₀ untuk mengatur kecepatan, atau s untuk jarak berhenti (zona remuk).' },
+  interaction: { handles: ['speed', 'distance'], hint: 'Seret penanda kecepatan awal atau jarak berhenti untuk mengubah percobaan.' },
   number: '04',
   short: 'Sabuk pengaman',
   title: 'Uji Sabuk Pengaman',
@@ -13,28 +13,32 @@ export default {
   fields: [
     { key: 'speed', label: 'Kecepatan awal', symbol: 'v<sub>0</sub>', unit: 'km/jam', min: 10, max: 120, step: 1 },
     { key: 'distance', label: 'Jarak berhenti (zona remuk)', symbol: 's', unit: 'm', min: 0.1, max: 1, step: 0.05 },
-    { key: 'mass', label: 'Massa dummy', symbol: 'm', unit: 'kg', min: 20, max: 120, step: 1 },
+    { key: 'mass', label: 'Massa boneka uji tabrak', symbol: 'm', unit: 'kg', min: 20, max: 120, step: 1 },
     { key: 'limit', label: 'Kekuatan sabuk', symbol: 'F<sub>maks</sub>', unit: 'N', min: 1000, max: 30000, step: 500 },
     { key: 'carMass', label: 'Massa mobil', symbol: 'M', unit: 'kg', min: 500, max: 3000, step: 50 },
   ],
   formula: 'v² = v<sub>0</sub>² + 2as &nbsp;&nbsp; F = m · a',
   assumptions:
-    'Mobil menyentuh dinding pada t = 0 lalu melambat dengan perlambatan konstan selama jarak berhenti s (zona remuk). Sabuk memberikan seluruh gaya horizontal yang menghentikan dummy; kursi memberi gaya normal ke atas yang menyeimbangkan berat. Gaya hasil model adalah gaya rata-rata, bukan puncak gaya tabrakan sungguhan. Massa mobil hanya konteks — gaya pada sabuk ditentukan massa dummy. Sabuk dianggap robek bila F ≥ kekuatan sabuk; karena gaya yang dibutuhkan sudah sebesar itu sejak awal pengereman, sabuk robek seketika. Setelah robek, dummy terus bergerak dengan v<sub>0</sub> (gesekan kursi diabaikan) sampai membentur dasbor 0,45 m di depannya.',
+    'Boneka uji tabrak disebut dummy pada soal asli. Mobil mulai menabrak pada waktu nol dan melambat secara tetap selama jarak berhenti. Sabuk menarik boneka ke belakang, sedangkan kursi menopangnya ke atas. Kebutuhan gaya dihitung dari massa boneka, kecepatan awal dan jarak berhenti. Massa mobil tidak masuk ke perhitungan gaya pada boneka. Jika kebutuhan gaya mencapai batas kekuatan sabuk, sabuk langsung robek. Boneka kemudian terus maju hingga mengenai dasbor 0,45 m di depannya. Gesekan kursi diabaikan. Gaya yang dihitung adalah gaya rata-rata selama perlambatan.',
   compare: {
-    question: 'Kecepatan 2× lipat. Gaya yang dibutuhkan untuk menahan dummy 2× atau 4×?',
-    sub: 'Mobil yang sama menabrak dinding dan berhenti dalam 0,5 m. Dummy 60 kg, sabuk robek pada 7.000 N.',
-    options: ['2×', '4×', 'Sama saja'],
+    question: 'Kecepatan dua kali lipat. Berapa kali lipat gaya yang dibutuhkan sabuk?',
+    sub: 'Jarak berhenti kedua mobil 0,5 m. Boneka uji tabrak (dummy) bermassa 60 kg.',
+    experimentQuestion: () => 'Cukup kuatkah sabuk menahan boneka uji tabrak?',
+    context: (A, B, f) => A.distance === B.distance && A.mass === B.mass && A.limit === B.limit
+      ? `Jarak berhenti ${f(A.distance)} m. Massa boneka ${f(A.mass)} kg. Batas gaya sabuk ${f(A.limit)} N.`
+      : `A berhenti dalam ${f(A.distance)} m, boneka ${f(A.mass)} kg, batas sabuk ${f(A.limit)} N. B berhenti dalam ${f(B.distance)} m, boneka ${f(B.mass)} kg, batas sabuk ${f(B.limit)} N.`,
+    options: ['Dua kali lipat', 'Empat kali lipat', 'Tetap sama'],
     correct: 1,
     key: 'speed',
     B: { speed: 72 },
-    tag: (p, f) => `${f(p.speed)} km/jam (${f(p.speed / 3.6, 1)} m/s)`,
-    detail: (p, r, f) => (r.fails ? `butuh ${f(r.force, 0)} N ≥ ${f(p.limit)} N ✗ robek · dummy membentur dasbor (kecepatan relatif ${f(r.impactSpeed, 1)} m/s)` : `butuh ${f(r.force, 0)} N < ${f(p.limit)} N ✓ aman`),
+    tag: (p, f) => `Kecepatan awal ${f(p.speed)} km/jam`,
+    detail: (p, r, f) => (r.fails ? `Sabuk robek. Gaya yang dibutuhkan ${f(r.force, 0)} N.` : `Sabuk menahan boneka. Gaya yang dibutuhkan ${f(r.force, 0)} N.`),
     equation: (A, rA, B, rB, f) =>
       `F<sub>butuh</sub>: <span class="a">${f(rA.force, 0)} N</span> × ${f(rB.force / rA.force, 2)} = <span class="b">${f(rB.force, 0)} N</span>`,
     caption: (A, rA, B, rB, f) => `F<sub>butuh</sub> = ½mv² / s — kecepatan ${f(rB.v0 / rA.v0, 2)}×, gaya yang dibutuhkan ${f(rB.force / rA.force, 2)}×. Sabuk hanya kuat sampai ${f(A.limit)} N.`,
     verdict: (A, rA, B, rB, f) =>
-      `${f(rB.force / rA.force, 2)}×! Gaya yang dibutuhkan sebanding dengan kuadrat kecepatan. A ${rA.fails ? 'robek' : 'aman'}, B ${rB.fails ? `robek: sabuk tidak pernah memberi ${f(rB.force, 0)} N, ia putus di ${f(B.limit)} N lalu dummy meluncur ke dasbor` : 'aman'}.`,
-    diagram: 'Diagram gaya pada dummy',
+      `Pada massa dan jarak berhenti yang sama, kecepatan dua kali lipat membutuhkan gaya empat kali lipat. Sabuk A ${rA.fails ? 'robek' : 'tetap utuh'}. Sabuk B ${rB.fails ? `robek karena kebutuhan gaya ${f(rB.force)} N melebihi batas ${f(B.limit)} N. Setelah robek, sabuk berhenti menarik boneka` : 'tetap utuh'}.`,
+    diagram: 'Diagram gaya pada boneka uji tabrak',
     // while braking; a torn belt exerts no force (the dummy slides freely until the dashboard)
     forces: (p, r) => [
       { dx: -1, dy: 0, value: r.fails ? 0 : r.force, label: r.fails ? 'F<tspan class="sub" dy="4">sabuk</tspan> (robek)' : 'F<tspan class="sub" dy="4">sabuk</tspan>' },

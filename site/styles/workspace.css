@@ -98,26 +98,35 @@ main { max-width: 1240px; padding: 24px; }
 .step-content { min-height: 0; min-width: 0; position: relative; }
 .learning-page { height: 100%; min-height: 0; overflow: auto; padding: 0; }
 .learning-page h2 { font-size: 1.5rem; }
-.experiment-page { position: relative; display: block; }
-.experiment-body, .experiment-visuals { height: 100%; min-height: 0; }
-.experiment-visuals { display: grid; grid-template-rows: minmax(0, 1fr) 48px; }
-.experiment-scenes { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.experiment-scenes .case { position: relative; min-height: 0; margin: 0; }
+.experiment-page { display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.experiment-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+.experiment-intro h2 { font: 600 clamp(1.05rem, 1.6vw, 1.3rem)/1.4 var(--font); margin: 0; }
+.experiment-intro p { margin: 4px 0 0; font-size: .85rem; color: var(--muted); max-width: 80ch; }
+.experiment-tools { display: flex; align-items: center; gap: 16px; flex: none; }
+.force-toggle { display: flex; align-items: center; gap: 6px; font-size: .85rem; cursor: pointer; }
+.force-toggle input { width: 16px; height: 16px; }
+main:focus { outline: none; }
+.experiment-body, .experiment-visuals { height: 100%; min-height: 0; min-width: 0; }
+.experiment-visuals { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.experiment-scenes { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; overflow: auto; background: var(--line); gap: 1px; }
+.experiment-scenes .case { display: grid; grid-template-rows: max-content minmax(280px, 1fr) max-content; min-width: 0; min-height: 380px; margin: 0; background: #f4f3ef; }
 .experiment-scenes .case:not(.selected-case) { display: none; }
-.compare-view .experiment-scenes { grid-template-columns: 1fr 1fr; gap: 2px; }
-.compare-view .experiment-scenes .case { display: block; }
-.experiment-scenes figcaption { position: absolute; left: 16px; top: 10px; z-index: 2; display: flex; align-items: baseline; gap: 8px; font-size: .85rem; margin: 0; pointer-events: none; }
+.compare-view .experiment-scenes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.compare-view .experiment-scenes .case { display: grid; }
+.experiment-scenes figcaption { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 20px; font-size: .9rem; margin: 0; min-height: 60px; justify-content: flex-start; }
+.load-controls { display: flex; gap: 6px; }
+.load-controls button { display: grid; place-items: center; width: max(36px, 2rem); height: max(36px, 2rem); border: 1px solid #cccac3; border-radius: 4px; background: #fff; font: 500 1.25rem/1 var(--font); cursor: pointer; }
 .case-letter { font-size: 1.35rem; }
-.interactive-scene { position: absolute; inset: 0; background: #f4f3ef; }
+.interactive-scene { position: relative; min-height: 0; overflow: hidden; background: #f4f3ef; }
 .scene-art, .interaction-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .scene-art .scene-svg { width: 100%; height: 100%; }
 .interactive-scene .layer-forces, .interactive-scene .layer-motion { display: none; }
 .interactive-scene.show-forces .layer-forces, .interactive-scene.show-motion .layer-motion { display: initial; }
-.case-result { position: absolute; left: 16px; bottom: 10px; z-index: 2; margin: 0; font: 600 .95rem var(--font-serif); background: #f4f3efd9; padding: 2px 4px; pointer-events: none; }
+.case-result { margin: 0; padding: 12px 20px; min-height: 48px; font: 500 .9rem/1.5 var(--font); font-variant-numeric: tabular-nums; }
 .case-a .case-result { color: var(--case-a); }
 .case-b .case-result { color: var(--case-b); }
-.case-result.live { font: 500 .85rem var(--font); font-variant-numeric: tabular-nums; }
-.scene-view-switch { position: absolute; right: 12px; top: 10px; z-index: 3; display: flex; padding: 2px; border: 1px solid #d9d8d2; border-radius: 4px; background: #fffef5e8; }
+.scene-view-switch { display: flex; padding: 3px; border: 1px solid var(--line-strong); border-radius: 5px; background: white; }
+
 .scene-view-switch button { min-height: 34px; min-width: 38px; padding: 4px 8px; border: 0; border-radius: 2px; background: transparent; font: 600 .85rem var(--font); color: var(--muted); cursor: pointer; }
 .scene-view-switch button[aria-pressed=true] { color: #111; background: #e8e7e0; }
 .scene-view-switch button[data-case-select=A] { color: var(--case-a); }
@@ -136,8 +145,11 @@ main { max-width: 1240px; padding: 24px; }
 .interaction-layer .load-value { font-size: 18px; stroke: none; }
 .interaction-layer .load-step { font-size: 14px; fill: #555; stroke: none; }
 .interaction-layer [tabindex]:focus-visible circle { stroke: #111; stroke-width: 5; }
+.interactive-scene.portrait-scene .desktop-detail, .interactive-scene:not(.portrait-scene) .portrait-detail { display: none; }
 .interaction-layer.dragging { cursor: grabbing; }
-.play-controls { display: flex; align-items: center; gap: 12px; padding: 4px 16px; }
+.interaction-layer .handle-label { visibility: hidden; }
+.interaction-layer [data-handle]:focus .handle-label, .interaction-layer.dragging .handle-label { visibility: visible; }
+.play-controls { display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: white; border-top: 1px solid var(--line); }
 .play-controls input { flex: 1; min-width: 30px; }
 .play-controls .button { min-height: 36px; padding: 0 12px; border: 0; }
 .play-controls output { min-width: 54px; font-size: .8rem; text-align: right; }
@@ -165,7 +177,8 @@ main { max-width: 1240px; padding: 24px; }
 .overlay-controls label { display: flex; gap: 6px; align-items: center; }
 .constraint-note { color: var(--muted); font-size: .8rem; }
 .explanation-page { width: 100%; max-width: none; margin: 0; }
-#explanation-content { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+#explanation-content { height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+.explanation-summary { margin: 0; padding: 4px 24px 12px; font-size: .95rem; line-height: 1.6; max-width: 100ch; }
 .explanation-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 16px; }
 .comparison-equation { font: 700 clamp(1.15rem, 2vw, 1.7rem) var(--font-serif); display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin: 0; }
 .comparison-equation .a { color: var(--case-a); }
@@ -173,7 +186,7 @@ main { max-width: 1240px; padding: 24px; }
 .analysis-select { margin-left: auto; }
 .explanation-toolbar .button { min-height: 34px; padding: 0 10px; border: 0; }
 .analysis-view { min-height: 0; overflow: auto; padding: 12px 24px; }
-.analysis-view > svg { display: block; width: 100%; height: 100%; max-height: none; }
+.analysis-view > svg { display: block; width: 100%; height: 100%; min-height: 320px; max-height: none; }
 #explanation-lock { display: grid; place-content: center; height: 100%; text-align: center; }
 .worked { max-width: 850px; margin: 20px auto; padding-left: 24px; font: 1.1rem/1.9 var(--font-serif); }
 .prediction-page { display: grid; grid-template-rows: auto minmax(100px, 1fr) auto; gap: 8px; padding: 12px 16px; }
@@ -225,12 +238,13 @@ main { max-width: 1240px; padding: 24px; }
   .step-select { width: 94px; flex: none; margin-left: 0; }
   .compact-navigation { display: none; }
   .settings-button { font-size: .77rem; padding: 0 7px; }
-  .scene-view-switch { right: 8px; top: 8px; }
-  .experiment-scenes figcaption { left: 10px; top: 10px; font-size: .75rem; }
-  .case-result { left: 8px; bottom: 8px; font-size: .82rem; max-width: calc(100% - 16px); }
-  .compare-view .experiment-scenes { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr; }
-  .compare-view .experiment-scenes figcaption { top: 4px; }
-  .compare-view .case-result { bottom: 4px; font-size: .72rem; }
+  .experiment-intro { padding: 12px; flex-wrap: wrap; gap: 10px; }
+  .experiment-intro p { font-size: .8rem; }
+  .experiment-tools { width: 100%; justify-content: space-between; }
+  .experiment-scenes figcaption { padding: 10px 12px; font-size: .85rem; }
+  .experiment-scenes .case { min-height: 400px; grid-template-rows: max-content minmax(290px, 1fr) max-content; }
+  .case-result { padding: 10px 12px; font-size: .85rem; }
+  .compare-view .experiment-scenes { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(min-content, auto); }
   .play-controls { padding: 4px 8px; gap: 7px; }
   .play-controls .button { font-size: .8rem; padding: 0 10px; }
   .play-controls output { min-width: 45px; }
@@ -257,6 +271,7 @@ main { max-width: 1240px; padding: 24px; }
   #lembar .sketch { height: 210px; }
   #lembar .small { font-size: .8rem; }
   .workspace-dialog { padding: 16px; }
+  .explanation-summary { padding: 4px 12px 12px; }
   .experiment-field > span:last-child { width: 120px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

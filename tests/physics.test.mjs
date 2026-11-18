@@ -152,10 +152,10 @@ test('A/B comparisons support each hook question', () => {
   }
   const s = pair('sabuk');
   close(s.rB.force / s.rA.force, 4);
-  assert.equal(s.l.compare.options[s.l.compare.correct], '4×');
+  assert.equal(s.l.compare.options[s.l.compare.correct], 'Empat kali lipat');
   const c = pair('sepeda');
   close(c.rA.duration, c.rB.duration);
-  assert.equal(c.l.compare.options[c.l.compare.correct], 'Sama saja');
+  assert.equal(c.l.compare.options[c.l.compare.correct], 'Bersamaan');
   for (const l of lessons) {
     for (const [k, v] of Object.entries(l.compare.B)) {
       const f = l.fields.find((x) => x.key === k);

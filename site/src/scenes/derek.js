@@ -98,9 +98,9 @@ const tagWidth = (text) => text.replace(/<[^>]+>/g, '').length * 7 + 16;
 /** Tag whose right edge sits at x (status messages stay left of the crate column). */
 const tagRight = (xRight, y, text, cls) => tag(xRight - tagWidth(text) / 2, y, text, cls);
 
-/** Vertical dimension line only: the drag handle's label already prints h. */
-function dim(x, yTop, yBottom) {
-  return `<g class="dim"><path d="M${x} ${r1(yTop)}V${r1(yBottom)}M${x - 6} ${r1(yTop)}H${x + 6}M${x - 6} ${r1(yBottom)}H${x + 6}"/></g>`;
+/** Target height label remains visible while the drag handle is idle. */
+function dim(x, yTop, yBottom, label) {
+  return `<g class="dim"><path d="M${x} ${r1(yTop)}V${r1(yBottom)}M${x - 6} ${r1(yTop)}H${x + 6}M${x - 6} ${r1(yBottom)}H${x + 6}"/><text x="${x + 10}" y="${r1((yTop + yBottom) / 2 + 4)}">${label}</text></g>`;
 }
 
 function crane() {
@@ -275,11 +275,11 @@ export function render(p, r, s, f) {
     ${gap}
     <path class="target-line" d="M${DIM_X - 8} ${r1(targetY)}H${HOOK_X + 46}"/>
     ${load(g, s.phase)}
-    ${gauge(p, r, s, f)}
-    ${status}
-    ${fbd(p, r, s, f)}
+    <g class="layer layer-forces">${gauge(p, r, s, f)}</g>
+    <g class="scene-status">${status}</g>
+    <g class="layer layer-forces">${fbd(p, r, s, f)}</g>
     <g class="layer layer-labels">
-      ${dim(DIM_X, targetY, GROUND)}
+      ${dim(DIM_X, targetY, GROUND, `${f(p.height)} m`)}
     </g>
     <g class="layer layer-forces">${forces}
     </g>

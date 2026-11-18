@@ -232,7 +232,7 @@ test('sepeda free-body diagram: N ⟂ slope = m g cos θ, F_g vertical, ΣF = m 
   assert.ok(lenW(B) - lenW(A) >= 20, 'A and B weight arrows differ visibly');
 });
 
-test('sepeda free-body diagram: always visible, inside both cameras, clear of everything else', () => {
+test('sepeda free-body diagram: available in the force layer, inside both detail cameras, clear of everything else', () => {
   const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
   const rect = { x0: FBD.x, y0: FBD.y, x1: FBD.x + FBD.w, y1: FBD.y + FBD.h };
   for (const cam of [camera.desktop, camera.portrait]) {
@@ -243,8 +243,7 @@ test('sepeda free-body diagram: always visible, inside both cameras, clear of ev
   for (const [name, p] of sets) {
     const r = solve('sepeda', p);
     const svg = render(p, r, sample('sepeda', p, r, r.duration / 2), fmt);
-    const at = svg.indexOf('class="fbd-panel'), layer = svg.indexOf('class="layer ');
-    assert.ok(at > 0 && at < layer, `${name}: diagram missing or inside a toggle layer`);
+    assert.match(svg, /class="layer layer-forces"><g class="fbd-panel/, `${name}: diagram must follow the force visibility control`);
     const others = sceneMarks(p, r).filter((m) => !(m.x0 === rect.x0 && m.y0 === rect.y0 && m.x1 === rect.x1 && m.y1 === rect.y1));
     const hit = others.find((m) => overlaps(m, rect));
     assert.equal(hit, undefined, `${name}: diagram overlaps ${JSON.stringify(hit)}`);

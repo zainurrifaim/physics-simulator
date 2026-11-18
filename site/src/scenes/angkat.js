@@ -93,17 +93,15 @@ export function render(p, r, s, f) {
     <path class="window" d="M40 250V110a45 45 0 0 1 90 0V250Z"/><path class="window-bar" d="M85 66V250M40 160H130"/>
     ${plant(150, FLOOR - 22, 1)}
     <rect class="mat" x="170" y="${FLOOR - 4}" width="260" height="8" rx="4"/>
-    ${fbdPanel({ ...FBD_DESKTOP, title: 'Diagram gaya barbel' }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}
-    ${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya pada barbel (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}
+    <g class="layer layer-forces desktop-detail">${fbdPanel({ ...FBD_DESKTOP, title: 'Diagram gaya barbel' }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}</g>
+    <g class="layer layer-forces portrait-detail">${fbdPanel({ ...FBD_PORTRAIT, title: `Diagram gaya pada barbel (m = ${f(p.mass)} kg)` }, fbdForces(p, s), fbdNotes(p, s, f), f, s.phase === 'drop' || s.phase === 'dropped' || s.phase === 'struggle' ? 'warn' : '')}</g>
     ${figure}
     ${barbell}
     ${handsFront}
     <g class="layer layer-labels">
       <path class="target-line" d="M190 ${targetY}H500"/>
-      ${dimV(520, targetY, barPixelY(0), "")}
-      ${tag(CX, FLOOR + 22, `m = ${f(p.mass)} kg`)}
-      ${tag(CX, 100, `E tersedia = ${f(p.energy)} J`, 'accent')}
-      ${status}
+      ${dimV(520, targetY, barPixelY(0), `${f(p.height)} m`, "left")}
+      <g class="scene-status">${status}</g>
     </g>
     <g class="layer layer-forces">
       <circle class="vec-dot" cx="${vecX}" cy="${by}" r="4"/>
@@ -119,7 +117,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '150 0 360 492' };
+export const camera = { desktop: '0 0 600 380', portrait: '150 0 400 492', cleanDesktop: '150 76 400 304', cleanPortrait: '150 76 400 304' };
 
 /** ± load panel sits at the top, away from the lifter and the barbell on the floor. */
 export const loadOffset = { desktop: [150, -292], portrait: [4, -292] };

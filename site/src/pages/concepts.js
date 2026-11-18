@@ -5,7 +5,7 @@ const concepts = [
     title: 'Usaha',
     formula: 'W = F · s · cos θ',
     unit: 'joule (J) = N · m',
-    text: 'Usaha dilakukan ketika gaya menyebabkan perpindahan. Bila gaya searah perpindahan, usaha positif; bila berlawanan, usaha negatif (misalnya tali lift yang menahan saat lift turun, atau sabuk yang menghentikan dummy).',
+    text: 'Usaha mengukur energi yang dipindahkan oleh gaya saat benda bergerak. Gaya searah gerak menghasilkan usaha positif. Gaya berlawanan arah gerak menghasilkan usaha negatif, seperti sabuk yang menghentikan boneka uji tabrak. Gaya tegak lurus gerak menghasilkan usaha nol.',
     links: [['derek', 'Derek'], ['lift', 'Lift']],
   },
   {
@@ -19,14 +19,14 @@ const concepts = [
     title: 'Energi kinetik',
     formula: 'E<sub>k</sub> = ½ · m · v²',
     unit: 'joule (J)',
-    text: 'Energi karena gerak. Karena kecepatan dikuadratkan, menggandakan kecepatan membuat energi kinetik — dan gaya pengereman pada jarak yang sama — menjadi empat kali.',
+    text: 'Energi yang dimiliki benda karena bergerak. Pada massa yang sama, kecepatan dua kali lipat menghasilkan energi kinetik empat kali lipat. Menghentikannya dalam jarak yang sama membutuhkan gaya rata-rata empat kali lipat.',
     links: [['sabuk', 'Sabuk pengaman'], ['sepeda', 'Sepeda']],
   },
   {
     title: 'Teorema usaha–energi',
     formula: 'W<sub>total</sub> = ΔE<sub>k</sub>',
     unit: 'joule (J)',
-    text: 'Usaha total pada benda sama dengan perubahan energi kinetiknya. Untuk dummy: −F · s = 0 − ½mv₀², sehingga F = ½mv₀² / s.',
+    text: 'Jumlah usaha semua gaya sama dengan perubahan energi gerak benda. Untuk menghentikan boneka uji tabrak, sabuk perlu mengurangi energi kinetiknya hingga nol. Besar gaya rata-rata yang dibutuhkan adalah energi kinetik awal dibagi jarak berhenti.',
     links: [['sabuk', 'Sabuk pengaman']],
   },
   {
@@ -40,7 +40,7 @@ const concepts = [
     title: 'Daya',
     formula: 'P = W / t = F · v',
     unit: 'watt (W) = J/s',
-    text: 'Daya adalah laju melakukan usaha. Usaha yang sama dapat dilakukan dengan daya kecil dalam waktu lama atau daya besar dalam waktu singkat.',
+    text: 'Daya menyatakan banyaknya energi yang dipindahkan setiap detik. Mengangkat peti ke tinggi yang sama membutuhkan usaha yang sama. Menyelesaikannya lebih cepat membutuhkan daya lebih besar. Hubungan P = F · v berlaku ketika gaya searah gerak.',
     links: [['derek', 'Derek'], ['lift', 'Lift']],
   },
 ];
@@ -48,7 +48,7 @@ const concepts = [
 const conventions = [
   ['F<sub>g</sub>', 'gaya berat = m · g (newton). Ditulis F<sub>g</sub> agar tidak tertukar dengan W untuk usaha.'],
   ['g', '10 m/s² di semua soal, sesuai materi.'],
-  ['Tanda', 'ke atas dan ke kanan positif. Percepatan negatif berarti perlambatan.'],
+  ['Tanda', 'Arah positif dipilih sesuai perhitungan. Benda melambat jika arah percepatannya berlawanan dengan arah kecepatan.'],
   ['Warna', 'jingga = gaya, biru = kecepatan, ungu putus-putus = perpindahan.'],
   ['Konversi', '1 kW = 1.000 W · 1 km/jam = 1/3,6 m/s · 36 km/jam = 10 m/s.'],
 ];
@@ -56,9 +56,7 @@ const conventions = [
 export function renderConcepts(main) {
   main.innerHTML = `
     <div class="page-heading">
-      <span class="eyebrow">RINGKASAN KONSEP</span>
       <h1>Usaha, energi, dan daya</h1>
-      <p class="lead">Enam gagasan yang menghubungkan kelima eksperimen. Setiap kartu menautkan ke simulasi tempat konsep itu muncul.</p>
     </div>
     <div class="concept-grid">
       ${concepts
