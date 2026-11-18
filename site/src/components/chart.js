@@ -22,7 +22,9 @@ export function compareChart(lesson, cases, total, t, { reveal = true, tall = fa
   const VH = tall ? 600 : 230;
   const g = lesson.compare.graph;
   const N = 120;
-  const times = Array.from({ length: N + 1 }, (_, i) => (total * i) / N);
+  // include every precomputed track point (e.g. the lift's 0,07 s overspeed trip) so short events are not smoothed away
+  const extra = cases.flatMap((c) => (c.r.track ?? []).map((pt) => pt.t)).filter((tt) => tt > 0 && tt < total);
+  const times = [...new Set([...Array.from({ length: N + 1 }, (_, i) => (total * i) / N), ...extra])].sort((a, b) => a - b);
   const value = (c, tt) => g.fn(sample(lesson.id, c.p, c.r, tt), c.p, c.r, tt);
   const data = cases.map((c) => times.map((tt) => value(c, tt)));
   const limits = g.line ? cases.map((c) => ({ ...g.line(c.p), cls: c.cls })) : [];

@@ -31,11 +31,13 @@ test('Soal 2 – derek: 30.000 J, 600 W ≤ 20.000 W', () => {
   close(r.duration, 50);
 });
 
-test('derek: insufficient power gives a longer minimum time', () => {
+test('derek: insufficient power runs out of time below the target', () => {
   const r = solve('derek', { mass: 200, height: 15, time: 50, power: 300 });
   assert.equal(r.ok, false);
   close(r.minTime, 100);
-  close(r.duration, 100);
+  close(r.duration, 50);               // the requested window is a hard limit
+  close(r.reached, 7.5);               // v = P / mg = 0,15 m/s for 50 s
+  close(sample('derek', { mass: 200, height: 15, time: 50, power: 300 }, r, 50).position, 7.5);
   assert.equal(solve('derek', { mass: 200, height: 15, time: 50, power: 600 }).ok, true);
 });
 
@@ -160,4 +162,20 @@ test('A/B comparisons support each hook question', () => {
       assert.ok(f && v >= f.min && v <= f.max, `${l.id}.B.${k}`);
     }
   }
+});
+
+test('setups exactly at a limit are never flipped by floating-point rounding', () => {
+  // 2500 + 1250 kg at 8/75 m/s needs exactly 4000 W (computes as 4000.0000000000005)
+  const r = solve('lift', { cabin: 2500, payload: 1250, top: 10, bottom: 2, time: 75, power: 4000 });
+  assert.equal(r.ok, true);
+  assert.equal(r.outcome, 'arrived');
+  let flips = 0;
+  for (let cabin = 500; cabin <= 5000; cabin += 100) for (let time = 20; time <= 200; time += 5) for (const drop of [5, 8, 13, 25, 33]) {
+    const power = Math.round((cabin + 1000) * 10 * drop / time);
+    const r2 = solve('lift', { cabin, payload: 1000, top: drop + 2, bottom: 2, time, power });
+    if (!r2.ok && r2.absorbed <= power * (1 + 1e-12)) flips++;
+  }
+  assert.equal(flips, 0);
+  assert.equal(solve('angkat', { mass: 20, height: 1.5, energy: 300 }).ok, true);
+  assert.equal(solve('derek', { mass: 200, height: 15, time: 50, power: 600 }).ok, true);
 });

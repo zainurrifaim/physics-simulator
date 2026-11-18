@@ -1,0 +1,21 @@
+/* Scene styles for the derek module only. */
+.scene-svg .dk-cab-window { fill: #dbeaf3; }
+.scene-svg .dk-block { fill: #d8a93a; stroke: #8a6a1f; stroke-width: 1.2; }
+.scene-svg .dk-sling { stroke: #4a5458; stroke-width: 1.4; fill: none; }
+.scene-svg .cable.dk-strain, .scene-svg .dk-sling.dk-strain { stroke: var(--warn); stroke-width: 2.4; }
+.scene-svg .dk-container rect { fill: #3f7d9c; stroke: #24506d; stroke-width: 1.5; }
+.scene-svg .dk-container path { stroke: #2c6584; stroke-width: 1; }
+.scene-svg .dk-worker path { stroke: #263a42; stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.scene-svg .dk-worker circle { fill: #f2c94c; stroke: #263a42; stroke-width: 0.8; }
+
+.scene-svg .dk-gap { fill: var(--warn); opacity: 0.16; }
+.scene-svg .dk-reached { stroke: var(--warn); stroke-width: 2.5; }
+
+.scene-svg .dk-panel { fill: rgba(255, 255, 255, 0.92); stroke: var(--line-strong); }
+.scene-svg .dk-gauge text { font-size: 11px; fill: var(--text); font-variant-numeric: tabular-nums; }
+.scene-svg .dk-gauge .dk-g-title { font-weight: 700; }
+.scene-svg .dk-gauge .dk-g-value { font-weight: 600; }
+.scene-svg .dk-track { fill: #e6e3da; }
+.scene-svg .dk-fill { fill: #d8a93a; }
+.scene-svg .dk-fill.maxed { fill: var(--warn); }
+.scene-svg .dk-fill.time { fill: var(--muted); }

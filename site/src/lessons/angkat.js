@@ -12,12 +12,12 @@ export default {
   preset: { mass: 20, height: 1.5, energy: 500 },
   fields: [
     { key: 'mass', label: 'Massa barbel', symbol: 'm', unit: 'kg', min: 5, max: 200, step: 1 },
-    { key: 'height', label: 'Tinggi angkat', symbol: 'h', unit: 'm', min: 0.5, max: 2.5, step: 0.1 },
+    { key: 'height', label: 'Tinggi angkat', symbol: 'h', unit: 'm', min: 0.5, max: 1.8, step: 0.1 },
     { key: 'energy', label: 'Energi mekanik tersedia', symbol: 'E', unit: 'J', min: 50, max: 5000, step: 10 },
   ],
   formula: 'E<sub>p</sub> = m · g · h',
   assumptions:
-    'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel diangkat dengan kecepatan tetap sehingga gaya angkat sama dengan gaya berat; percepatan singkat di awal dan akhir diabaikan. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
+    'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel mulai dan berhenti dengan lembut: gaya angkat sedikit lebih besar dari berat saat mempercepat dan sedikit lebih kecil saat memperlambat, sehingga usaha totalnya tetap m · g · h. Atlet setinggi 1,8 m hanya dapat menjangkau sekitar 2,1 m di atas lantai, jadi tinggi angkat dibatasi 1,8 m. Bila energi habis sebelum target, barbel berhenti lalu dilepas dan jatuh bebas. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
   compare: {
     question: 'Energi atlet 500 J. Barbel 20 kg atau 40 kg — mana yang sampai ke atas kepala?',
     sub: 'Atlet yang sama mengangkat barbel setinggi 1,5 m. Massa B dua kali massa A. g = 10 m/s².',
@@ -26,7 +26,7 @@ export default {
     key: 'mass',
     B: { mass: 40 },
     tag: (p, f) => `${f(p.mass)} kg`,
-    detail: (p, r, f) => (r.ok ? `butuh ${f(r.work)} J ✓` : `butuh ${f(r.work)} J ✗ · berhenti di ${f(r.reachable, 2)} m`),
+    detail: (p, r, f) => (r.ok ? `butuh ${f(r.work)} J ✓` : `butuh ${f(r.work)} J ✗ · energi habis di ${f(r.reachable, 2)} m, barbel jatuh`),
     equation: (A, rA, B, rB, f) =>
       `<span class="a">${f(rA.work)} J</span> &lt; ${f(A.energy)} J ${rB.work > B.energy ? '&lt;' : '≥'} <span class="b">${f(rB.work)} J</span>`,
     caption: (A, rA, B, rB, f) => `E<sub>p</sub> = m · g · h — massa ${f(B.mass / A.mass, 2)}×, energi yang dibutuhkan ${f(rB.work / rA.work, 2)}×`,

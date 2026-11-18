@@ -1,0 +1,47 @@
+/* Scene styles for the lift module only. */
+.scene-svg .pit { fill: #e4dff0; }
+.scene-svg .buffer-spring { fill: none; stroke: #6f6a85; stroke-width: 1.4; stroke-linejoin: round; }
+.scene-svg .landing { stroke: #6f6a85; stroke-width: 2.5; }
+.scene-svg .lift-machine { fill: #4c4862; }
+.scene-svg .level-text { font-size: 11px; font-weight: 700; fill: var(--text); paint-order: stroke; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px; }
+.scene-svg .level-text.missed { fill: var(--warn); }
+.scene-svg .cabin.fail > rect:first-child { fill: #a5705f; }
+.scene-svg .brake-mark { fill: var(--warn); }
+.scene-svg .impact { stroke: var(--warn); stroke-width: 2; stroke-linecap: round; fill: none; }
+.scene-svg .callout-frame { fill: none; stroke: #6d6888; stroke-width: 1; stroke-dasharray: 3 2; }
+.scene-svg .callout-line { stroke: #8b86a0; stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+
+/* magnified cabin */
+.scene-svg .inset-frame { fill: #fff; stroke: #8b86a0; stroke-width: 1.5; }
+.scene-svg .shaft-bg { fill: #f6f4fa; }
+.scene-svg .inset-header { fill: #fff; }
+.scene-svg .inset-title { font-size: 14px; font-weight: 700; fill: var(--text); }
+.scene-svg .inset-sub { font-size: 11px; font-weight: 600; fill: #6d6888; }
+.scene-svg .inset-note { font-size: 10px; fill: #6d6888; }
+.scene-svg .inset-rail { fill: #b9b3cb; }
+.scene-svg .gear-housing { fill: #d9d4e6; stroke: #8b86a0; stroke-width: 1; }
+.scene-svg .brake-jaw { fill: #8b86a0; }
+.scene-svg .brake-jaw.on { fill: var(--warn); }
+.scene-svg .spark { stroke: #f0a530; stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.scene-svg .steel { fill: #8d99a3; stroke: #56626b; stroke-width: 1.2; }
+.scene-svg .steel.part { fill: #aeb8c0; }
+.scene-svg .lift-display { fill: #26232f; }
+.scene-svg .display-big { font-size: 13px; font-weight: 700; fill: #8ef0b4; font-variant-numeric: tabular-nums; }
+.scene-svg .display-small { font-size: 11px; fill: #c9c4dc; font-variant-numeric: tabular-nums; }
+.scene-svg .display-small.warn { fill: #ff9a7a; }
+
+/* live gauges */
+.scene-svg .gauge-title { font-size: 11px; font-weight: 700; fill: var(--text); }
+.scene-svg .gauge-value { font-size: 12px; font-weight: 700; fill: var(--text); font-variant-numeric: tabular-nums; }
+.scene-svg .gauge-track { fill: #e6e2ee; }
+.scene-svg .gauge-fill { fill: #6e8fd0; }
+.scene-svg .lift-gauge.ok .gauge-fill { fill: var(--good); }
+.scene-svg .lift-gauge.warn .gauge-fill { fill: var(--warn); }
+.scene-svg .lift-gauge.warn .gauge-value { fill: var(--warn); }
+.scene-svg .gauge-mark { stroke: var(--text); stroke-width: 1.5; }
+.scene-svg .gauge-mark.limit { stroke: var(--warn); }
+.scene-svg .gauge-mark.need { stroke: var(--warn); stroke-dasharray: 2 2; }
+.scene-svg .gauge-mark-text { font-size: 10px; fill: #6d6888; }
+.scene-svg .gauge-mark-text.limit, .scene-svg .gauge-mark-text.need { fill: var(--warn); font-weight: 600; }
+.scene-svg .gauge-ghost { fill: none; stroke: var(--warn); stroke-width: 1.4; stroke-dasharray: 3 2; }
+.scene-svg .pit-fill { fill: #b9b3cb; }

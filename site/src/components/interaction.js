@@ -1,4 +1,6 @@
 import { fmt } from '../format.js';
+import { sceneModules } from '../scenes/index.js';
+import { MAX_SLOPE_SIN } from '../physics/models.js';
 
 /** One validation path for scene gestures, keyboard actions and number fields. */
 export function editParameter(lesson, params, key, raw) {
@@ -6,8 +8,8 @@ export function editParameter(lesson, params, key, raw) {
   if (!field || !Number.isFinite(raw)) throw new RangeError('Masukkan angka yang valid.');
   let min = field.min, max = field.max;
   if (lesson.id === 'sepeda') {
-    if (key === 'height') max = Math.min(max, params.length);
-    if (key === 'length') min = Math.max(min, params.height);
+    if (key === 'height') max = Math.min(max, params.length * MAX_SLOPE_SIN);
+    if (key === 'length') min = Math.max(min, params.height / MAX_SLOPE_SIN);
   }
   if (lesson.id === 'lift') {
     if (key === 'top') min = Math.max(min, params.bottom + 1);
@@ -29,25 +31,15 @@ export function comparisonValue(id, result) {
   return { value: result[key], unit };
 }
 
-/** Geometry in the same coordinate system as the illustrations (600 × 380). */
+/** Viewport of a module scene (600 × 380 coordinates); each scene owns its camera. */
 export function sceneCamera(id, portrait) {
-  if (!portrait) return '0 0 600 380';
-  return { angkat: '165 0 300 380', derek: '165 0 400 380', lift: '220 0 350 380', sabuk: '175 20 380 350', sepeda: '45 0 530 380' }[id];
+  const c = sceneModules[id].camera;
+  return portrait ? c.portrait : c.desktop;
 }
 
+/** Drag-handle position and drag mapping; each scene owns the geometry it draws. */
 export function handleGeometry(id, key, p, portrait = false) {
-  if (id === 'angkat') return { x: portrait ? 440 : 520, y: 318 - p.height * 100, axis: 'y', factor: -0.01 };
-  if (id === 'derek') return { x: 500, y: 345 - p.height * 8.5, axis: 'y', factor: -1 / 8.5 };
-  if (id === 'lift') return { x: key === 'top' ? 450 : 520, y: 355 - p[key] * 7.5, axis: 'y', factor: -1 / 7.5 };
-  if (id === 'sabuk') return key === 'distance'
-    ? { x: 200 + p.distance * 140, y: 160, axis: 'x', factor: 1 / 140 }
-    : { x: 170 + p.speed * 2.5, y: 70, axis: 'x', factor: 1 / 2.5 };
-  const cos = Math.sqrt(Math.max(0, 1 - (p.height / p.length) ** 2));
-  const scale = Math.min(cos > 1e-6 ? 470 / (p.length * cos) : Infinity, 250 / p.height);
-  const topX = 545 - p.length * cos * scale, topY = 330 - p.height * scale;
-  return key === 'height'
-    ? { x: Math.max(50, topX), y: topY, axis: 'y', factor: -1 / scale }
-    : { x: (topX + 545) / 2, y: (topY + 330) / 2, axis: 'x', factor: -p.length / 300 };
+  return sceneModules[id].handle(key, p, portrait);
 }
 
 export function dragValue(startValue, startPoint, point, geometry) {
@@ -84,7 +76,7 @@ export function mountInteraction(host, lesson, caseName, getParams, edit) {
     if (!startPoint) return;
     e.preventDefault();
     const key = handle.dataset.handle, p = getParams();
-    drag = { key, startPoint, startValue: p[key], geometry: handleGeometry(lesson.id, key, p, window.matchMedia('(max-width: 600px)').matches), pointerId: e.pointerId };
+    drag = { key, last: startPoint, value: p[key], pointerId: e.pointerId };
     handle.focus();
     svg.setPointerCapture(e.pointerId);
     svg.classList.add('dragging');
@@ -92,7 +84,14 @@ export function mountInteraction(host, lesson, caseName, getParams, edit) {
   svg.addEventListener('pointermove', (e) => {
     if (!drag || drag.pointerId !== e.pointerId) return;
     const current = point(e);
-    if (current) edit(drag.key, dragValue(drag.startValue, drag.startPoint, current, drag.geometry));
+    if (!current) return;
+    // incremental: a scene may rescale while dragging (e.g. the hill), so use the CURRENT
+    // geometry for each step; keep an unrounded value so small steps are not lost to rounding
+    const geometry = handleGeometry(lesson.id, drag.key, getParams(), window.matchMedia('(max-width: 600px)').matches);
+    const field = lesson.fields.find((f) => f.key === drag.key);
+    drag.value = Math.max(field.min, Math.min(field.max, dragValue(drag.value, drag.last, current, geometry)));
+    drag.last = current;
+    edit(drag.key, drag.value);
   });
   for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(event, finish);
   function load(target) {
@@ -137,7 +136,11 @@ export function mountInteraction(host, lesson, caseName, getParams, edit) {
       }
       if (config.load) {
         svg.querySelector('.load-value').textContent = `${fmt(p[config.load])} kg`;
-        svg.querySelector('.scene-load').setAttribute('transform', portrait && lesson.id === 'lift' ? 'translate(60 0)' : 'translate(0 0)');
+        // scenes may move the ± panel off the action: export loadOffset = { desktop: [dx, dy], portrait: [dx, dy] }
+        // loadOffset may also be a function (p, portrait) → [dx, dy] when the free space depends on the setup
+        const lo = sceneModules[lesson.id].loadOffset;
+        const [dx, dy] = (typeof lo === 'function' ? lo(p, portrait) : lo?.[portrait ? 'portrait' : 'desktop']) ?? (portrait && lesson.id === 'lift' ? [60, 0] : [0, 0]);
+        svg.querySelector('.scene-load').setAttribute('transform', `translate(${dx} ${dy})`);
       }
     },
     cancel() { if (drag) finish({ pointerId: drag.pointerId }); },

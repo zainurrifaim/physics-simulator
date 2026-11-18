@@ -1,13 +1,19 @@
-import { render as angkat } from './angkat.js';
-import { render as derek } from './derek.js';
-import { render as lift } from './lift.js';
-import { render as sabuk } from './sabuk.js';
-import { render as sepeda } from './sepeda.js';
+import * as angkat from './angkat.js';
+import * as derek from './derek.js';
+import * as lift from './lift.js';
+import * as sabuk from './sabuk.js';
+import * as sepeda from './sepeda.js';
 import { fmt } from '../format.js';
 
-const renderers = { angkat, derek, lift, sabuk, sepeda };
+/**
+ * Each scene module exports:
+ *   render(p, r, s, f) → SVG string (600 × 380 viewBox)
+ *   camera = { desktop, portrait } viewBox strings
+ *   handle(key, p, portrait) → { x, y, axis, factor } drag handle for an interactive parameter
+ */
+export const sceneModules = { angkat, derek, lift, sabuk, sepeda };
 
 /** Render a module scene for parameters p, result r and sampled state s. */
 export function scene(id, p, r, s) {
-  return renderers[id](p, r, s, fmt);
+  return sceneModules[id].render(p, r, s, fmt);
 }

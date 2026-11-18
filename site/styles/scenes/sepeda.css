@@ -1,0 +1,36 @@
+/* Scene styles for the sepeda module only. */
+.scene-svg .slope-line.track { fill: none; stroke-linejoin: round; }
+.scene-svg .slope-mark { stroke: #2f4a2b; stroke-width: 2; }
+.scene-svg .bike .tyre { stroke-width: 3.5; }
+.scene-svg .spoke { stroke: #6b7c84; stroke-width: 1; }
+.scene-svg .valve { fill: #e88c4f; }
+.scene-svg .hub { fill: #263a42; }
+.scene-svg .chainring { fill: none; stroke: #4a5458; stroke-width: 1.5; }
+.scene-svg .crank { stroke: #263a42; stroke-width: 2; stroke-linecap: round; }
+.scene-svg .pedal { stroke: #1b2a30; stroke-width: 3; stroke-linecap: round; }
+.scene-svg .saddle { stroke: #1b2a30; stroke-width: 3; stroke-linecap: round; }
+.scene-svg .rider-limb { stroke: #263a42; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.scene-svg .rider-limb.far { stroke: #4d6470; }
+.scene-svg .rider-arm, .scene-svg .rider-arm-far { stroke: #e2a07b; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.scene-svg .rider-arm-far { stroke: #c98f6c; }
+.scene-svg .torso { stroke: #2d6db5; stroke-linecap: round; fill: none; }
+.scene-svg .shoe { stroke: #1b2a30; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+.scene-svg .ghost { opacity: 0.2; }
+.scene-svg .ghost .tyre { stroke-width: 2.5; }
+.scene-svg .strobe-dot { fill: var(--disp); stroke: #fff; stroke-width: 1; }
+.scene-svg .strobe-legend text { font-size: 11px; font-weight: 600; fill: var(--disp); }
+.scene-svg .disp-label { font-size: 12px; font-weight: 700; fill: var(--disp); }
+
+.scene-svg .energy-text { font-size: 11px; font-weight: 700; }
+.scene-svg .energy-text.ep { fill: var(--energy); }
+.scene-svg .energy-text.ek { fill: var(--velocity); }
+.scene-svg .energy-track { fill: #fff; stroke: var(--line-strong); }
+.scene-svg .energy-ep { fill: var(--energy); }
+.scene-svg .energy-ek { fill: var(--velocity); }
+.scene-svg .energy-total { font-size: 11px; font-weight: 600; fill: var(--total); }
+
+.scene-svg .scale-note text { font-size: 11px; font-weight: 600; fill: #4f4a3c; }
+.scene-svg .scale-bar { stroke: #4f4a3c; stroke-width: 1.5; fill: none; }
+.scene-svg .vec-force-text { fill: #a8461a; }
+.scene-svg .vec-velocity-text { fill: var(--velocity); }

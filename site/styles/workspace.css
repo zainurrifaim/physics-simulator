@@ -116,6 +116,7 @@ main { max-width: 1240px; padding: 24px; }
 .case-result { position: absolute; left: 16px; bottom: 10px; z-index: 2; margin: 0; font: 600 .95rem var(--font-serif); background: #f4f3efd9; padding: 2px 4px; pointer-events: none; }
 .case-a .case-result { color: var(--case-a); }
 .case-b .case-result { color: var(--case-b); }
+.case-result.live { font: 500 .85rem var(--font); font-variant-numeric: tabular-nums; }
 .scene-view-switch { position: absolute; right: 12px; top: 10px; z-index: 3; display: flex; padding: 2px; border: 1px solid #d9d8d2; border-radius: 4px; background: #fffef5e8; }
 .scene-view-switch button { min-height: 34px; min-width: 38px; padding: 4px 8px; border: 0; border-radius: 2px; background: transparent; font: 600 .85rem var(--font); color: var(--muted); cursor: pointer; }
 .scene-view-switch button[aria-pressed=true] { color: #111; background: #e8e7e0; }

@@ -1,0 +1,4 @@
+/* Scene styles for the angkat module only. */
+.scene-svg .person .shorts { fill: #2d4b5a; }
+.scene-svg .person .shoe { fill: #263a42; }
+.scene-svg .grip-hand { stroke: #c98f6c; stroke-width: 1; }

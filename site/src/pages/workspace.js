@@ -1,5 +1,6 @@
 import { lessons } from '../lessons/index.js';
-import { solve, sample, advance } from '../physics/models.js';
+import { live } from '../lessons/live.js';
+import { solve, sample, advance, SLOW_PHASES } from '../physics/models.js';
 import { scene } from '../scenes/index.js';
 import { compareChart } from '../components/chart.js';
 import { forceDiagram } from '../components/fbd.js';
@@ -12,10 +13,19 @@ import * as store from '../state/storage.js';
 const STEPS = ['Prediksi', 'Eksperimen', 'Penjelasan', 'Latihan'];
 const TASKS = ['Sketsa', 'Vektor', 'Perhitungan', 'Refleksi'];
 
+/** Saved drafts may predate a range change (e.g. a lower maximum lift height); keep them valid. */
+function fitFields(lesson, params) {
+  let out = { ...params };
+  for (const f of lesson.fields) if (!Number.isFinite(out[f.key])) out[f.key] = lesson.preset[f.key];
+  // the same validation as an edit: ranges, steps and cross-field limits (e.g. the slope cap)
+  for (const f of lesson.fields) out = editParameter(lesson, out, f.key, out[f.key]);
+  return out;
+}
+
 export function renderWorkspace(main, lesson) {
   const cmp = lesson.compare, draft = store.draft(lesson.id);
   const st = {
-    A: { ...lesson.preset, ...draft.params }, B: { ...lesson.preset, ...cmp.B, ...draft.paramsB },
+    A: fitFields(lesson, { ...lesson.preset, ...draft.params }), B: fitFields(lesson, { ...lesson.preset, ...cmp.B, ...draft.paramsB }),
     step: 1, task: Math.max(0, Math.min(3, Math.floor(Number(draft.task)) || 0)),
     activeCase: draft.activeCase === 'B' ? 'B' : 'A', t: Number(draft.time) || 0, playing: false,
     analysis: 'graph', view: 'single',
@@ -41,14 +51,14 @@ export function renderWorkspace(main, lesson) {
     <div class="step-content">
       <section class="learning-page prediction-page" data-page="0" aria-labelledby="prediction-title">
         <div class="prediction-copy"><h2 id="prediction-title" tabindex="-1">${cmp.question}</h2><p>${cmp.sub}</p></div>
-        <div class="prediction-scenes">${['A', 'B'].map((c) => { const p = c === 'A' ? lesson.preset : { ...lesson.preset, ...cmp.B }; const r = solve(lesson.id, p); return `<figure class="case case-${c.toLowerCase()}"><figcaption><b class="case-letter">${c}</b> ${cmp.tag(p, fmt)}</figcaption><div class="preview-scene stage-layers">${scene(lesson.id, p, r, sample(lesson.id, p, r, 0))}</div></figure>`; }).join('')}</div>
+        <div class="prediction-scenes">${['A', 'B'].map((c) => { const p = c === 'A' ? lesson.preset : { ...lesson.preset, ...cmp.B }; const r = solve(lesson.id, p); return `<figure class="case case-${c.toLowerCase()}"><figcaption><b class="case-letter">${c}</b> ${cmp.tag(p, fmt)}</figcaption><div class="preview-scene stage-layers show-labels show-motion">${scene(lesson.id, p, r, sample(lesson.id, p, r, 0))}</div></figure>`; }).join('')}</div>
         <div class="prediction-answer"><div class="poll-options" role="group" aria-label="Prediksi">${cmp.options.map((o, i) => `<button class="button ghost" data-poll="${i}" aria-pressed="false">${o}</button>`).join('')}</div><p id="prediction-feedback" role="status"></p></div>
       </section>
       <section class="learning-page experiment-page" data-page="1" aria-labelledby="experiment-title" hidden>
         <h2 id="experiment-title" class="sr-only" tabindex="-1">${lesson.title}</h2>
         <div class="scene-view-switch" role="group" aria-label="Tampilan simulasi">${['A', 'B'].map((c) => `<button data-case-select="${c}" data-view="single" aria-pressed="false">${c}</button>`).join('')}<button data-view="compare" aria-pressed="false">A/B</button></div>
         <div class="experiment-body"><div class="experiment-visuals">
-          <div class="experiment-scenes">${['A', 'B'].map((c) => `<figure class="case case-${c.toLowerCase()}" data-case-figure="${c}"><figcaption><b class="case-letter">${c}</b><span id="tag-${c}"></span></figcaption><div class="interactive-scene stage-layers" id="scene-${c}"><div class="scene-art"></div></div><p class="case-result" id="detail-${c}"></p></figure>`).join('')}</div>
+          <div class="experiment-scenes">${['A', 'B'].map((c) => `<figure class="case case-${c.toLowerCase()}" data-case-figure="${c}"><figcaption><b class="case-letter">${c}</b><span id="tag-${c}"></span></figcaption><div class="interactive-scene stage-layers show-labels" id="scene-${c}"><div class="scene-art"></div></div><p class="case-result" id="detail-${c}"></p></figure>`).join('')}</div>
           <div class="play-controls"><button class="button primary" data-act="play">Jalankan</button><input type="range" id="timeline" min="0" max="1000" value="0" aria-label="Waktu simulasi"><output id="clock"></output><button class="button ghost" data-act="restart" aria-label="Ulangi gerakan">↺</button></div>
         </div></div>
       </section>
@@ -70,8 +80,8 @@ export function renderWorkspace(main, lesson) {
       <div class="case-switch" role="group" aria-label="Situasi yang diedit">${['A', 'B'].map((c) => `<button data-case-select="${c}" aria-pressed="false">${c} <span id="summary-${c}"></span></button>`).join('')}</div>
       <p class="interaction-hint">${lesson.interaction.hint}</p><div id="primary-fields"></div>
       <details class="other-parameters"><summary>Besaran lain</summary><div id="secondary-fields"></div></details>
-      <div class="overlay-controls"><label><input type="checkbox" data-layer="forces"> Gaya</label><label><input type="checkbox" data-layer="motion"> Gerak</label></div>
-      <p class="constraint-note">${lesson.id === 'sepeda' ? 'Tinggi bukit ≤ panjang lintasan.' : lesson.id === 'lift' ? 'Lantai awal harus di atas lantai akhir.' : 'Model ideal · g = 10 m/s²'}</p>
+      <div class="overlay-controls"><label><input type="checkbox" data-layer="labels" checked> Label</label><label><input type="checkbox" data-layer="forces"> Gaya</label><label><input type="checkbox" data-layer="motion"> Gerak</label></div>
+      <p class="constraint-note">${lesson.id === 'sepeda' ? 'Tinggi bukit ≤ 0,7 × panjang lintasan (sin θ ≤ 0,7, θ ≤ 44,4°).' : lesson.id === 'lift' ? 'Lantai awal harus di atas lantai akhir.' : 'Model ideal · g = 10 m/s²'}</p>
       <button class="button ghost" data-act="preset">Reset A &amp; B</button><p class="error" id="param-error" role="alert"></p>
     </dialog>
     <dialog class="workspace-dialog" id="explanation-notes" aria-labelledby="notes-title"><header><h2 id="notes-title">Penjelasan</h2><button class="icon-button" data-close-dialog aria-label="Tutup penjelasan">×</button></header><p id="eq-caption"></p><p id="verdict"></p><h3>Asumsi model</h3><p>${lesson.assumptions}</p></dialog>`;
@@ -86,15 +96,22 @@ export function renderWorkspace(main, lesson) {
   }
   function renderScenes() {
     for (const c of ['A', 'B']) {
-      $(`#scene-${c} .scene-art`).innerHTML = scene(lesson.id, st[c], st[`r${c}`], sample(lesson.id, st[c], st[`r${c}`], st.t));
+      const state = sample(lesson.id, st[c], st[`r${c}`], st.t);
+      $(`#scene-${c} .scene-art`).innerHTML = scene(lesson.id, st[c], st[`r${c}`], state);
       $(`#scene-${c} .scene-art svg`).setAttribute('viewBox', sceneCamera(lesson.id, window.matchMedia('(max-width: 600px)').matches));
       interactions[c].update();
       $(`#tag-${c}`).textContent = cmp.tag(st[c], fmt);
       $(`#summary-${c}`).textContent = cmp.tag(st[c], fmt);
-      $(`#detail-${c}`).textContent = cmp.detail(st[c], st[`r${c}`], fmt);
+      // while the motion runs: live numbers from the drawn state; at the end: the verdict
+      const finished = st.t >= st[`r${c}`].duration - 1e-9 && st.t > 0;
+      $(`#detail-${c}`).textContent = finished ? cmp.detail(st[c], st[`r${c}`], fmt) : live[lesson.id](st[c], st[`r${c}`], state, fmt);
+      $(`#detail-${c}`).classList.toggle('live', !finished);
     }
     $('#timeline').value = String(Math.round(st.t / total() * 1000));
-    $('#clock').textContent = `${fmt(st.t, total() < 1 ? 3 : 1)} s`;
+    // playback always lasts ~5 s of wall time; say how much slower/faster than real time that is
+    const rate = total() / 5;
+    const pace = Math.abs(rate - 1) < 0.05 ? '' : rate < 1 ? ` · gerak lambat ×${fmt(1 / rate, 0)}` : ` · dipercepat ×${fmt(rate, 0)}`;
+    $('#clock').textContent = `${fmt(st.t, total() < 1 ? 3 : 1)} s${pace}`;
     $('[data-act="play"]').textContent = st.playing ? 'Jeda' : st.t >= total() ? 'Putar ulang' : 'Jalankan';
   }
   function field(f) {
@@ -165,7 +182,11 @@ export function renderWorkspace(main, lesson) {
   }
   function loop(now) {
     if (!main.isConnected || !st.playing) return;
-    if (last !== null) st.t = advance(st.t, (now - last) / 1000, total() / 5, total());
+    // ~5 s of wall time for the whole run, but very short events (an overspeed trip lasting
+    // 0,07 s of a 100 s descent) play at 1/50 of real time so they can actually be seen
+    const brief = ['A', 'B'].some((c) => SLOW_PHASES.has(sample(lesson.id, st[c], st[`r${c}`], st.t).phase));
+    const rate = brief ? Math.min(total() / 5, 0.02) : total() / 5;
+    if (last !== null) st.t = advance(st.t, (now - last) / 1000, rate, total());
     last = now;
     if (st.t >= total()) { pause(); persist(); }
     renderScenes();

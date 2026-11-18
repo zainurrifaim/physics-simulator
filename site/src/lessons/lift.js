@@ -20,7 +20,7 @@ export default {
   ],
   formula: 'P = F · v &nbsp;&nbsp; v = s / t',
   assumptions:
-    'Model pengajaran: lift tanpa beban penyeimbang turun dengan kecepatan tetap. Gaya penahan (tali/motor) ke atas sama dengan berat total dan melakukan usaha negatif. Daya 10.000 W dianggap sebagai laju maksimum mesin menyerap energi yang dilepaskan gravitasi. Batas struktur dan keselamatan lain diabaikan — hasilnya bukan kapasitas resmi lift sungguhan.',
+    'Model pengajaran: lift tanpa beban penyeimbang turun dengan kecepatan tetap. Gaya penahan (tali/motor) ke atas sama dengan berat total dan melakukan usaha negatif. Daya P (soal asli: 10.000 W) dianggap sebagai laju maksimum mesin menyerap energi yang dilepaskan gravitasi. Pengendali memaksa kecepatan normal v = s / t sejak awal; lift berat yang turun lebih lambat (v ≤ P / (m g)) sebenarnya tetap aman, tetapi tidak tiba dalam waktu t. Bila muatan terlalu berat, rem hanya mampu memberi gaya P / v sehingga lift makin cepat; pembatas kecepatan memicu rem darurat pada 115% kecepatan normal dan kabin berhenti. Batas struktur lain diabaikan — hasilnya bukan kapasitas resmi lift sungguhan.',
   compare: {
     question: 'Lift turun 25 m dalam 100 s, daya maksimum 10 kW. Muatan 1.500 kg atau 2.500 kg?',
     sub: 'Kabin 2.500 kg turun dengan kecepatan tetap; mesin menyerap energi yang dilepaskan gravitasi. g = 10 m/s².',
@@ -29,23 +29,24 @@ export default {
     key: 'payload',
     B: { payload: 2500 },
     tag: (p, f) => `muatan ${f(p.payload)} kg`,
-    detail: (p, r, f) => `${f(r.absorbed)} W ${r.ok ? '✓' : '✗'}`,
+    detail: (p, r, f) => (r.ok ? `${f(r.absorbed)} W ✓` : `${f(r.absorbed)} W ✗ · ${r.outcome === 'safety' ? `rem darurat di ${f(r.stopHeight, 1)} m` : 'menghantam peredam'}`),
     equation: (A, rA, B, rB, f) =>
       `<span class="a">${f(rA.absorbed)} W</span> ${rA.ok ? '≤' : '&gt;'} ${f(A.power)} W ${rB.ok ? '≥' : '&lt;'} <span class="b">${f(rB.absorbed)} W</span>`,
     caption: (A, rA, B, rB, f) => `P = m<sub>total</sub> · g · v, v = ${f(rA.speed, 2)} m/s — muatan maksimum ${f(Math.max(0, rA.maxPayload))} kg = ${f(rA.maxPayloadWeight)} N`,
     verdict: (A, rA, B, rB, f) =>
       rA.ok && !rB.ok ? `Hanya A. Muatan maksimum tepat ${f(rA.maxPayload)} kg (${f(rA.maxPayloadWeight)} N); B butuh ${f(rB.absorbed)} W.` : rA.ok && rB.ok ? 'Keduanya aman.' : 'Daya lift terlampaui.',
     diagram: 'Diagram gaya pada kabin',
+    // the brake can supply at most P / v: an overloaded cabin is NOT in equilibrium
     forces: (p, r) => [
-      { dx: 0, dy: -1, value: r.weight, label: 'T' },
+      { dx: 0, dy: -1, value: Math.min(r.weight, p.power / r.speed), label: r.ok ? 'T' : 'T = P/v' },
       { dx: 0, dy: 1, value: r.weight, label: 'F<tspan class="sub" dy="4">g</tspan>' },
     ],
-    graph: { label: 'daya yang diserap', unit: 'W', fn: (s, p, r, t) => (t <= r.duration ? r.absorbed : 0), line: (p) => ({ value: p.power, label: 'daya maks.' }) },
+    graph: { label: 'laju turun', unit: 'm/s', fn: (s) => s.speed, line: (p) => ({ value: (p.top - p.bottom) / p.time, label: 'kecepatan normal' }) },
   },
   worked: (p, r, f) => [
-    `s = ${f(p.top)} − ${f(p.bottom)} = ${f(r.drop)} m (ke bawah), v = s / t = ${f(r.speed, 3)} m/s`,
-    `Cara kunci jawaban: W = P · t = ${f(p.power * p.time)} J, F = W / s = ${f(r.maxTotalMass * 10)} N`,
-    `Cara setara: P = F · v → F = ${f(p.power)} / ${f(r.speed, 3)} = ${f(r.maxTotalMass * 10)} N`,
+    `s = ${f(p.top)} − ${f(p.bottom)} = ${f(r.drop)} m (ke bawah), v = s / t = ${f(r.drop)} / ${f(p.time)} = ${f(r.speed, 4)} m/s`,
+    `Cara kunci jawaban: energi yang boleh diserap mesin selama t adalah W = P · t = ${f(p.power * p.time)} J. Energi itu sama dengan energi potensial yang dilepas, F · s, jadi F = W / s = ${f(p.power * p.time)} / ${f(r.drop)} = ${f(r.maxTotalMass * 10)} N`,
+    `Cara setara: P = F · v → F = P / (s / t) = ${f(p.power)} × ${f(p.time)} / ${f(r.drop)} = ${f(r.maxTotalMass * 10)} N. Usaha gaya penahan bernilai negatif (gaya ke atas, gerak ke bawah).`,
     `m<sub>total</sub> = F / g = ${f(r.maxTotalMass)} kg → m<sub>muatan</sub> = ${f(r.maxTotalMass)} − ${f(p.cabin)} = ${f(r.maxPayload)} kg`,
     r.maxPayload >= 0
       ? `Berat muatan maksimum = ${f(Math.max(0, r.maxPayload))} × 10 = <b>${f(r.maxPayloadWeight)} N</b>`

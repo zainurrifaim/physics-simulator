@@ -29,12 +29,12 @@ test('edits clamp, round to increments and reject invalid input', () => {
   assert.throws(() => editParameter(lesson, lesson.preset, 'unknown', 2));
 });
 
-test('slope gestures never allow height greater than length', () => {
+test('slope gestures keep the hill no steeper than sin θ = 0,7', () => {
   const l = byId('sepeda');
   let p = editParameter(l, { ...l.preset, length: 100 }, 'height', 150);
-  assert.equal(p.height, 100);
+  assert.equal(p.height, 70);
   p = editParameter(l, { ...l.preset, height: 83 }, 'length', 20);
-  assert.ok(p.length >= p.height);
+  assert.ok(p.height / p.length <= 0.7 + 1e-9);
   assert.doesNotThrow(() => solve(l.id, p));
 });
 

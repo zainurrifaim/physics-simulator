@@ -23,7 +23,7 @@ function arrow(x1, y1, x2, y2, cls, label, value) {
   return `<g class="fa fa-${cls}">
     <path d="M${x1} ${y1}L${bx.toFixed(1)} ${by.toFixed(1)}"/>
     <path class="fh" d="M${x2.toFixed(1)} ${y2.toFixed(1)}L${(bx - uy * 5).toFixed(1)} ${(by + ux * 5).toFixed(1)}L${(bx + uy * 5).toFixed(1)} ${(by - ux * 5).toFixed(1)}Z"/>
-    <text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${label} = ${fmt(value, 0)} N</text>
+    <text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${label.replace(/dy="4">([^<]*)<\/tspan>(?!<tspan dy="-4">)/g, 'dy="4">$1</tspan><tspan dy="-4"></tspan>')} = ${fmt(value, 0)} N</text>
   </g>`;
 }
 
@@ -36,7 +36,8 @@ export function forceDiagram(lesson, cases, { stacked = false } = {}) {
     const cy = 112;
     const arrows = sets[k]
       .map((f) => {
-        const len = Math.max(14, (f.value / max) * MAXLEN);
+        // true proportions (no minimum length), so arrows can be compared directly
+        const len = Math.max(2, (f.value / max) * MAXLEN);
         return arrow(cx, cy, cx + f.dx * len, cy + f.dy * len, c.cls, f.label, f.value);
       })
       .join('');

@@ -1,0 +1,48 @@
+/* Scene styles for the sabuk module only. */
+.scene-svg .sabuk-car .car-body { fill: #3f7d9c; stroke: #2c5f78; stroke-width: 1.2; stroke-linejoin: round; }
+.scene-svg .sabuk-car .car-interior { fill: #e4edf2; stroke: #2c5f78; stroke-width: 1.2; }
+.scene-svg .sabuk-car .car-window-line { stroke: #b9cbd6; stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+.scene-svg .sabuk-car .car-frame { stroke: #2c5f78; stroke-width: 5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.scene-svg .sabuk-car .crumple-folds { stroke: #24506d; stroke-width: 1.4; fill: none; stroke-linejoin: round; }
+.scene-svg .sabuk-car .dash { fill: #4a5458; }
+.scene-svg .sabuk-car .seat { fill: #6d4b3a; }
+.scene-svg .sabuk-car .seat-rail { stroke: #4a5458; stroke-width: 3; fill: none; }
+.scene-svg .sabuk-car .wheel .spokes { stroke: #2a2f33; stroke-width: 2.5; stroke-linecap: round; }
+.scene-svg .sabuk-car .belt { fill: none; stroke: #263238; stroke-width: 3.5; stroke-linejoin: round; }
+.scene-svg .sabuk-car .belt.broken { stroke: var(--warn); stroke-width: 3.5; }
+.scene-svg .test-wall .wall-crack { stroke: #5b2f20; stroke-width: 1.6; fill: none; }
+
+/* crash-test dummy */
+.scene-svg .cdummy .cd-body { fill: #f2c94c; stroke: #2a2f33; stroke-width: 1.2; stroke-linejoin: round; }
+.scene-svg .cdummy .cd-limb { stroke: #e2b33a; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.scene-svg .cdummy .cd-shoe { stroke: #2a2f33; fill: none; stroke-linecap: round; }
+.scene-svg .cdummy .cd-joint { fill: #2a2f33; }
+.scene-svg .cdummy .cd-target circle { fill: #f2c94c; stroke: #2a2f33; stroke-width: 1; }
+.scene-svg .cdummy .cd-target path { fill: #2a2f33; }
+.scene-svg .cdummy.ghost { opacity: 0.35; }
+.scene-svg .cdummy.ghost .cd-body { fill: none; stroke: #2a2f33; stroke-dasharray: 3 3; }
+.scene-svg .cdummy.ghost .cd-limb { stroke: #9aa3a8; }
+.scene-svg .cdummy.ghost .cd-shoe { stroke: #9aa3a8; }
+
+.scene-svg .impact-burst { fill: #ffd34d; stroke: var(--warn); stroke-width: 2; stroke-linejoin: round; }
+.scene-svg .crumple-zone { fill: rgba(212, 98, 43, 0.18); stroke: var(--force); stroke-width: 1.4; stroke-dasharray: 5 4; }
+
+/* annotation */
+.scene-svg .sabuk-dim path { stroke: #fff; }
+.scene-svg .sabuk-dim text { fill: #fff; }
+.scene-svg .sabuk-dim .crushed-bar { fill: var(--force); stroke: none; }
+.scene-svg .gap-dim path { stroke: var(--warn); stroke-width: 1.3; fill: none; }
+.scene-svg .gap-dim text { fill: var(--warn); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: rgba(255, 255, 255, 0.9); stroke-width: 3px; }
+
+.scene-svg .readout .ro-bg { fill: rgba(255, 255, 255, 0.92); stroke: var(--line-strong); }
+.scene-svg .readout text { font-size: 11px; fill: var(--text); }
+.scene-svg .readout .ro-label { font-weight: 600; }
+.scene-svg .readout .ro-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.scene-svg .readout .ro-unit { font-size: 9px; fill: var(--muted); }
+.scene-svg .readout .ro-note { font-size: 10px; fill: var(--muted); }
+.scene-svg .readout .warn { fill: var(--warn); font-weight: 700; }
+.scene-svg .readout .ro-track { fill: #ebe9e2; }
+.scene-svg .readout .ro-bar.velocity { fill: var(--velocity); }
+.scene-svg .readout .ro-bar.force { fill: var(--force); }
+.scene-svg .readout .ro-bar.warn { fill: var(--warn); }
+.scene-svg .readout .ro-limit { stroke: var(--warn); stroke-width: 2; }
