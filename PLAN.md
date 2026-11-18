@@ -1,6 +1,6 @@
 # Usaha dan Energi Simulator Website Plan
 
-Status: implemented in `website/`. The original documents are preserved. See `website/README.md` for local run commands and model limitations.
+Status: rebuilt in `site/` (readable source, tests in `tests/`, reel-style animated story added to every module). The original documents are preserved. See `README.md` for local run commands. `ruang-fisika-deployment.tar.gz` is the earlier packaged build, kept for reference.
 
 ## Purpose and intended learners
 

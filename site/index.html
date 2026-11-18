@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f6b5f">
+  <meta name="description" content="Lima simulasi interaktif usaha, energi, dan daya dari kehidupan sehari-hari: cerita animasi, eksperimen, diagram vektor, grafik, dan lembar belajar.">
+  <title>Ruang Fisika — Belajar lewat eksperimen</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/layout.css">
+  <link rel="stylesheet" href="./styles/scene.css">
+  <link rel="stylesheet" href="./styles/story.css">
+  <link rel="stylesheet" href="./styles/workspace.css">
+  <link rel="stylesheet" href="./styles/print.css" media="print">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Langsung ke konten</a>
+  <div id="app">
+    <noscript><p class="boot-message">Situs ini membutuhkan JavaScript. Aktifkan JavaScript di browser untuk memakai simulasi.</p></noscript>
+  </div>
+  <script>
+    // ES modules are blocked when the page is opened straight from disk (file://).
+    if (location.protocol === 'file:') {
+      document.getElementById('app').innerHTML =
+        '<div class="boot-message"><h1>Jalankan lewat server lokal</h1>' +
+        '<p>Browser tidak mengizinkan simulasi berjalan bila file dibuka langsung dari folder. ' +
+        'Klik dua kali <b>start-server.bat</b> di folder proyek (Windows), atau jalankan perintah berikut lalu buka ' +
+        '<b>http://localhost:8000</b>:</p><pre>python -m http.server 8000 -d site</pre></div>';
+    }
+  </script>
+  <dialog id="guide" aria-labelledby="guide-title">
+    <button class="icon-button close" data-close aria-label="Tutup panduan">×</button>
+    <span class="eyebrow">MULAI DARI RASA INGIN TAHU</span>
+    <h2 id="guide-title">Tonton. Tebak. Coba. Pahami.</h2>
+    <p>Tidak perlu langsung tahu jawabannya. Pilih satu situasi dan ikuti lima langkah:</p>
+    <ol>
+      <li><b>Cerita</b> — tonton animasi singkat tentang soalnya.</li>
+      <li><b>Prediksi</b> — tebak hasilnya sebelum menghitung.</li>
+      <li><b>Eksperimen</b> — ubah parameter, jalankan, jeda, dan geser waktu.</li>
+      <li><b>Analisis</b> — hubungkan adegan, vektor, grafik, dan perhitungan.</li>
+      <li><b>Refleksi</b> — kerjakan lembar belajar: sketsa, vektor, hitungan, dan penjelasan.</li>
+    </ol>
+    <p class="muted">Semua simulasi memakai model ideal dengan g = 10 m/s². Catatan tersimpan di browser ini saja.</p>
+    <button class="button primary" data-close>Siap bereksperimen →</button>
+  </dialog>
+</body>
+</html>
