@@ -26,6 +26,7 @@ a { color: inherit; text-decoration: none; }
 .learning-page:not(.practice-page) { display: none !important; }
 .practice-page[hidden], #lembar .ws-block[hidden], .vector-item[hidden] { display: block !important; }
 #lembar .worksheet-heading { display: flex; }
+#lembar .ws-title { display: flex; }
 #lembar .worksheet-actions, #complete-feedback { display: none !important; }
 #lembar .sketch { height: auto; }
 details { display: block; }

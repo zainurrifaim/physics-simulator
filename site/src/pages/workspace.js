@@ -5,7 +5,7 @@ import { scene } from '../scenes/index.js';
 import { compareChart } from '../components/chart.js';
 import { forceDiagram } from '../components/fbd.js';
 import { mountWorksheet } from '../components/worksheet.js';
-import { mountInteraction, editParameter, isOriginalComparison, comparisonValue, sceneViewport } from '../components/interaction.js';
+import { mountInteraction, editParameter, isOriginalComparison, comparisonValue, sceneViewport, sceneCamera } from '../components/interaction.js';
 import { fmt } from '../format.js';
 import * as store from '../state/storage.js';
 
@@ -25,7 +25,7 @@ export function renderWorkspace(main, lesson) {
   const cmp = lesson.compare, draft = store.draft(lesson.id);
   const st = {
     A: fitFields(lesson, { ...lesson.preset, ...draft.params }), B: fitFields(lesson, { ...lesson.preset, ...cmp.B, ...draft.paramsB }),
-    step: 1, task: Math.max(0, Math.min(3, Math.floor(Number(draft.task)) || 0)),
+    step: 0, task: Math.max(0, Math.min(3, Math.floor(Number(draft.task)) || 0)),
     activeCase: draft.activeCase === 'B' ? 'B' : 'A', t: Number(draft.time) || 0, playing: false,
     analysis: 'graph', view: 'compare',
   };
@@ -51,7 +51,7 @@ export function renderWorkspace(main, lesson) {
       <section class="learning-page prediction-page" data-page="0" aria-labelledby="prediction-title">
         <div class="prediction-copy"><h2 id="prediction-title" tabindex="-1">${cmp.question}</h2><p>${cmp.sub}</p></div>
         <div class="prediction-scenes">${['A', 'B'].map((c) => { const p = c === 'A' ? lesson.preset : { ...lesson.preset, ...cmp.B }; const r = solve(lesson.id, p); return `<figure class="case case-${c.toLowerCase()}"><figcaption><b class="case-letter">${c}</b> ${cmp.tag(p, fmt)}</figcaption><div class="preview-scene stage-layers show-labels show-motion">${scene(lesson.id, p, r, sample(lesson.id, p, r, 0))}</div></figure>`; }).join('')}</div>
-        <div class="prediction-answer"><div class="poll-options" role="group" aria-label="Prediksi">${cmp.options.map((o, i) => `<button class="button ghost" data-poll="${i}" aria-pressed="false">${o}</button>`).join('')}</div><p id="prediction-feedback" role="status"></p></div>
+        <div class="prediction-answer"><div class="poll-options" role="group" aria-label="Prediksi">${cmp.options.map((o, i) => `<button class="button ghost" data-poll="${i}" aria-pressed="false">${o}</button>`).join('')}</div><p id="prediction-feedback" role="status"></p><button class="button primary prediction-continue" data-act="experiment">Coba eksperimen</button></div>
       </section>
       <section class="learning-page experiment-page" data-page="1" aria-labelledby="experiment-title" hidden>
         <div class="experiment-intro"><div><h2 id="experiment-title" tabindex="-1"></h2><p id="experiment-context"></p></div><div class="experiment-tools"><label class="force-toggle"><input type="checkbox" data-layer="forces"> Gaya</label>
@@ -85,6 +85,7 @@ export function renderWorkspace(main, lesson) {
     </dialog>
     <dialog class="workspace-dialog" id="explanation-notes" aria-labelledby="notes-title"><header><h2 id="notes-title">Penjelasan</h2><button class="icon-button" data-close-dialog aria-label="Tutup penjelasan">×</button></header><p id="eq-caption"></p><p id="verdict"></p><h3>Asumsi model</h3><p>${lesson.assumptions}</p></dialog>`;
   const $ = (selector) => main.querySelector(selector);
+  for (const preview of main.querySelectorAll('.preview-scene svg')) preview.setAttribute('viewBox', sceneCamera(lesson.id, false, false));
   const interactions = {};
   for (const c of ['A', 'B']) interactions[c] = mountInteraction($(`#scene-${c}`), lesson, c, () => st[c], (key, value) => update(c, key, value));
   mountWorksheet($('#lembar'), lesson, draft);
@@ -209,6 +210,7 @@ export function renderWorkspace(main, lesson) {
     else if (b.dataset.act === 'settings') { pause(); renderScenes(); $('#experiment-settings').showModal(); }
     else if (b.dataset.act === 'notes') $('#explanation-notes').showModal();
     else if (b.dataset.act === 'reveal') { draft.revealed = true; store.save(); renderExplanation(); }
+    else if (b.dataset.act === 'experiment') go(1);
     else if (b.dataset.act === 'previous') { if (st.step === 3 && st.task > 0) { st.task--; renderTask(); renderNavigation(); persist(); } else go(st.step - 1); }
     else if (b.dataset.act === 'next') { if (st.step === 3 && st.task < 3) { st.task++; renderTask(); renderNavigation(); persist(); } else go(st.step + 1); }
     else if (b.dataset.act === 'play') {
@@ -238,10 +240,6 @@ export function renderWorkspace(main, lesson) {
       renderScenes();
     }
   });
-  main.addEventListener('input', (e) => {
-    const input = e.target;
-    if (input.dataset.param && input.value !== '' && Number.isFinite(input.valueAsNumber)) update(st.activeCase, input.dataset.param, input.valueAsNumber);
-  });
   const cameraMedia = window.matchMedia('(max-width: 600px)');
   function visibilityChanged() {
     if (document.hidden && st.playing) {
@@ -254,6 +252,6 @@ export function renderWorkspace(main, lesson) {
   const sceneObserver = new ResizeObserver(() => renderScenes());
   for (const host of main.querySelectorAll('.interactive-scene')) sceneObserver.observe(host);
   $('#timeline').addEventListener('input', (e) => { pause(); st.t = Number(e.target.value) / 1000 * total(); renderScenes(); persist(); });
-  renderControls(); renderPrediction(); go(1, false);
+  renderControls(); renderPrediction(); go(0, false);
   return () => { pause(); sceneObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChanged); cameraMedia.removeEventListener('change', resizeViews); Object.values(interactions).forEach((i) => i.cancel()); persist(); };
 }

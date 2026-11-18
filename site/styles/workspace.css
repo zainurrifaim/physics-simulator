@@ -109,7 +109,7 @@ main:focus { outline: none; }
 .experiment-body, .experiment-visuals { height: 100%; min-height: 0; min-width: 0; }
 .experiment-visuals { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
 .experiment-scenes { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; overflow: auto; background: var(--line); gap: 1px; }
-.experiment-scenes .case { display: grid; grid-template-rows: max-content minmax(280px, 1fr) max-content; min-width: 0; min-height: 380px; margin: 0; background: #f4f3ef; }
+.experiment-scenes .case { display: grid; grid-template-rows: max-content minmax(100px, 1fr) max-content; min-width: 0; min-height: 0; margin: 0; background: #f4f3ef; }
 .experiment-scenes .case:not(.selected-case) { display: none; }
 .compare-view .experiment-scenes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .compare-view .experiment-scenes .case { display: grid; }
@@ -186,7 +186,7 @@ main:focus { outline: none; }
 .analysis-select { margin-left: auto; }
 .explanation-toolbar .button { min-height: 34px; padding: 0 10px; border: 0; }
 .analysis-view { min-height: 0; overflow: auto; padding: 12px 24px; }
-.analysis-view > svg { display: block; width: 100%; height: 100%; min-height: 320px; max-height: none; }
+.analysis-view > svg { display: block; width: 100%; height: 100%; min-height: 180px; max-height: none; }
 #explanation-lock { display: grid; place-content: center; height: 100%; text-align: center; }
 .worked { max-width: 850px; margin: 20px auto; padding-left: 24px; font: 1.1rem/1.9 var(--font-serif); }
 .prediction-page { display: grid; grid-template-rows: auto minmax(100px, 1fr) auto; gap: 8px; padding: 12px 16px; }
@@ -199,8 +199,10 @@ main:focus { outline: none; }
 .preview-scene { flex: 1; min-height: 0; background: #f4f3ef; }
 .preview-scene .scene-svg { width: 100%; height: 100%; }
 .prediction-answer { text-align: center; }
+.prediction-continue { margin-top: 12px; }
+.preview-scene .scene-status { display: none; }
 .poll-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
-.poll-options button[aria-pressed=true] { background: #222; color: white; }
+.poll-options .button[aria-pressed=true], .poll-options .button[aria-pressed=true]:hover { background: #222; color: white; border-color: #222; }
 #prediction-feedback { font-size: .8rem; color: var(--muted); margin: 5px 0 0; }
 .practice-page { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 6px; }
 .practice-page h2 { font-size: 1.3rem; margin: 0; }
@@ -211,9 +213,9 @@ main:focus { outline: none; }
 #lembar .problem-text { font-size: .85rem; margin: 8px 0 0; }
 #lembar .ws-block { padding: 10px 0; border: 0; }
 #lembar .ws-block:first-of-type { margin-top: 0; }
-#lembar .ws-title { font-size: 1.05rem; margin-bottom: 6px; }
+#lembar .ws-title { display: none; font-size: 1.05rem; margin-bottom: 6px; }
 #lembar .ws-title span { display: none; }
-#lembar .text-area { margin: 6px 0 10px; }
+#lembar .text-area { margin: 6px 0 10px; min-height: 72px; height: clamp(72px, 15dvh, 120px); }
 #lembar .sketch { height: 190px; }
 #lembar .sketch-tools { flex-wrap: wrap; gap: 10px; }
 #lembar .vector-task { grid-template-columns: minmax(0, 1fr) 150px; gap: 16px; }
@@ -238,13 +240,12 @@ main:focus { outline: none; }
   .step-select { width: 94px; flex: none; margin-left: 0; }
   .compact-navigation { display: none; }
   .settings-button { font-size: .77rem; padding: 0 7px; }
-  .experiment-intro { padding: 12px; flex-wrap: wrap; gap: 10px; }
+  .experiment-intro { padding: 8px 12px; flex-wrap: wrap; gap: 6px; }
   .experiment-intro p { font-size: .8rem; }
   .experiment-tools { width: 100%; justify-content: space-between; }
-  .experiment-scenes figcaption { padding: 10px 12px; font-size: .85rem; }
-  .experiment-scenes .case { min-height: 400px; grid-template-rows: max-content minmax(290px, 1fr) max-content; }
-  .case-result { padding: 10px 12px; font-size: .85rem; }
-  .compare-view .experiment-scenes { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(min-content, auto); }
+  .experiment-scenes figcaption { padding: 4px 12px; font-size: .85rem; min-height: 44px; gap: 6px; }
+  .case-result { padding: 4px 12px; font-size: .85rem; min-height: 32px; }
+  .compare-view .experiment-scenes { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(min-content, 1fr)); }
   .play-controls { padding: 4px 8px; gap: 7px; }
   .play-controls .button { font-size: .8rem; padding: 0 10px; }
   .play-controls output { min-width: 45px; }
@@ -268,10 +269,33 @@ main:focus { outline: none; }
   #lembar .vector-item legend { font-size: .8rem; }
   #lembar .dir-row { gap: 3px; flex-wrap: wrap; }
   #lembar .mag .text-input { width: 80px; }
-  #lembar .sketch { height: 210px; }
+  #lembar .sketch { height: clamp(110px, 24dvh, 190px); }
   #lembar .small { font-size: .8rem; }
   .workspace-dialog { padding: 16px; }
   .explanation-summary { padding: 4px 12px 12px; }
   .experiment-field > span:last-child { width: 120px; }
+  .practice-page { padding: 8px 12px; }
+  .practice-page h2 { font-size: 1.05rem; }
+  #lembar .ws-block { padding: 6px 0; }
+  #lembar .field-title { font-size: .9rem; margin-bottom: 6px; }
+  #lembar .worksheet-actions { gap: 6px; }
+  #lembar .worksheet-actions .button { font-size: .8rem; padding: 0 8px; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .experiment-intro { padding: 6px 12px; }
+  .experiment-intro h2 { font-size: 1rem; }
+  .experiment-intro p { margin-top: 0; font-size: .8rem; }
+  .experiment-scenes figcaption { padding: 2px 12px; min-height: 40px; }
+  .case-result { padding: 2px 12px; min-height: 28px; font-size: .8rem; }
+  .play-controls { padding-top: 4px; padding-bottom: 4px; }
+  .prediction-page { grid-template-columns: minmax(0, 1fr) minmax(220px, .7fr); grid-template-rows: auto minmax(100px, 1fr); padding: 6px 12px; }
+  .prediction-copy { grid-column: 1 / -1; }
+  .prediction-copy h2 { font-size: 1.1rem; }
+  .prediction-copy p { font-size: .8rem; }
+  .prediction-answer { align-self: center; }
+  .poll-options { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .poll-options .button { padding: 3px 8px; font-size: .8rem; }
+  .prediction-continue { margin-top: 6px; }
+  #prediction-feedback { font-size: .75rem; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

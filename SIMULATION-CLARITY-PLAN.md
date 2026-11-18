@@ -1,5 +1,7 @@
 # Ruang Fisika simulation review and improvement plan
 
+Current entry flow, revised after user review: every module opens at **Prediksi**. **Coba eksperimen** opens the A/B experiment. Saved answers, parameters and playback position remain available. Earlier references below to opening directly at Eksperimen record the previous plan.
+
 Reviewed 18 November 2026 against commit `433a3bc`. The review covered the shared workspace and all five lesson definitions, with fresh visual checks of the lift and cycling experiments. All 68 existing tests passed before any implementation.
 
 ## What learners see today
@@ -75,3 +77,7 @@ Implemented across all five modules. Branding, wording and scene cleanup were as
 All 68 physics, interaction and scene tests pass. Browser checks covered all five modules at 1280 × 720, 390 × 844 and 360 × 800, including playback, saved state, parameter editing, view changes, predictions, graphs, forces, calculations and worksheet sections. Additional checks verified pointer dragging, keyboard edits, worksheet grading and saved answers, print visibility, both logo locations and enlarged text. No browser script errors or horizontal document overflow occurred in these checks. Physical touchscreen use and a student walkthrough remain unverified.
 
 Follow-up playback review found that the reduced-motion preference caused *Jalankan* to seek immediately to the end. Explicit playback now runs under either motion preference. Delayed frames are capped at 0.1 seconds of wall time, and hiding the tab pauses and saves playback. Browser regression checks passed for all five modules under both motion preferences, including intermediate progress, pause, resume and replay. Separate checks simulated a 60-second frame delay and hiding/restoring the page. All 68 existing tests also pass after this correction.
+
+The follow-up entry-flow review verified all five modules from Home and after reload at desktop and two phone widths. Prediction selections persist, the experiment opens in A/B, and saved playback time is restored. A visible continuation button supports phone navigation. Selected answers retain readable contrast on hover. Numeric parameters now validate when an edit is committed, allowing multi-digit values to be typed before clamping. Browser checks covered normal input, range clamping and saved values.
+
+Responsive follow-up replaces fixed 400 px phone panels with panels sized to the available height. Browser measurements found no vertical overflow in default predictions and A/B experiments across all five modules at 1280 × 720, 390 × 844, 360 × 640 and 844 × 390. Default worksheet tasks also fit at the desktop and portrait sizes. Short landscape worksheets, expanded content and long calculations retain scrolling. Functional checks covered playback, scene/handle camera alignment, worksheet grading, print headings and 200% text.
