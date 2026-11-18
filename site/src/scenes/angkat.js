@@ -3,8 +3,8 @@
 // body squats/leans to reach a low bar. A failed lift (energy spent below the target)
 // shows the bar stopping, the athlete releasing it and the bar falling to the floor.
 import { arrow, dimV, tag, plant, svg, sub, vlen } from './draw.js';
-import { lifterPose, drawFigure, GRIP_HALF } from './rig.js';
-import { BAR_REST_HEIGHT } from '../physics/models.js';
+import { lifterPose, drawFigure, LIFTER, LIFTER_GRIP_HALF as GRIP_HALF } from './rig.js';
+import { BAR_REST_HEIGHT, RELEASE_SECONDS } from '../physics/models.js';
 
 export const FLOOR = 340;
 export const PX_PER_M = 100;
@@ -16,15 +16,20 @@ const PLATE_R = 0.225;        // Ø 450 mm bumper plates
 /** Bar centre in pixels for a state (exported for tests and the drag handle). */
 export const barPixelY = (position) => FLOOR - (BAR_REST_HEIGHT + position) * PX_PER_M;
 
-/** Pose for a sampled state (exported so tests check exactly what is drawn). */
-export function poseFor(s) {
-  return lifterPose({ barY: BAR_REST_HEIGHT + s.position, grip: s.grip !== false });
+/**
+ * Pose for a sampled state (exported so tests check exactly what is drawn). After a failed
+ * lift the hands leave the bar and the body eases from its last posture to standing.
+ */
+export function poseFor(s, r) {
+  if (s.grip !== false) return lifterPose({ barY: BAR_REST_HEIGHT + s.position, body: LIFTER, gripHalf: GRIP_HALF });
+  const release = r ? Math.min(1, Math.max(0, (s.t - r.holdEnd) / RELEASE_SECONDS)) : 1;
+  return lifterPose({ barY: BAR_REST_HEIGHT + (r ? r.reachable : 0), release, body: LIFTER, gripHalf: GRIP_HALF });
 }
 
 export function render(p, r, s, f) {
   const barY = barPixelY(s.position);
   const targetY = barPixelY(p.height);
-  const pose = poseFor(s);
+  const pose = poseFor(s, r);
   // plate thickness grows with the load; diameter stays standard so the rest height is fixed
   const plateW = Math.max(5, Math.min(26, 4 + p.mass * 0.11));
   const pr = PLATE_R * PX_PER_M;
@@ -40,13 +45,16 @@ export function render(p, r, s, f) {
     ? [-1, 1].map((side) => `<rect class="grip-hand skin" x="${CX + side * GRIP_HALF * PX_PER_M - 5}" y="${by - 6}" width="10" height="12" rx="4"/>`).join('')
     : '';
 
-  const vecX = CX + 1.1 * PX_PER_M;
+  const vecX = CX + 1.15 * PX_PER_M;
   // one fixed scale for A and B (1 000 N → 110 px), so a heavier bar really gets a longer arrow
   const forceRef = 1000;
   const lift = s.liftForce ?? 0;
-  const status = s.phase === 'struggle' ? tag(CX, Math.max(110, by - 46), `Energi habis di h = ${f(r.reachable, 2)} m`, 'warn')
-    : s.phase === 'drop' || s.phase === 'dropped' ? tag(CX, 112, `Gagal · energi ${f(p.energy)} J < ${f(r.work)} J`, 'warn')
-    : s.phase === 'hold' ? tag(CX, 112, 'Berhasil sampai target', 'ok') : '';
+  // fixed status slot under the energy tag, above the highest possible plate top (y ≈ 136)
+  const STATUS_Y = 124;
+  const status = s.phase === 'struggle' ? tag(CX, STATUS_Y, `Energi habis di h = ${f(r.reachable, 2)} m`, 'warn')
+    : s.phase === 'drop' || s.phase === 'dropped' ? tag(CX, STATUS_Y, `Gagal · butuh ${f(r.work)} J > ${f(p.energy)} J`, 'warn')
+    : s.phase === 'hold' ? tag(CX, STATUS_Y, 'Berhasil sampai target', 'ok') : '';
+  const down = Math.min(vlen(r.weight, forceRef, 110, 20), 376 - by);
 
   return svg(
     `
@@ -62,28 +70,29 @@ export function render(p, r, s, f) {
       <path class="target-line" d="M190 ${targetY}H500"/>
       ${dimV(520, targetY, barPixelY(0), `h = ${f(p.height)} m`)}
       ${tag(CX, FLOOR + 22, `m = ${f(p.mass)} kg`)}
-      ${tag(110, 40, `E tersedia = ${f(p.energy)} J`, 'accent')}
+      ${tag(CX, 100, `E tersedia = ${f(p.energy)} J`, 'accent')}
       ${status}
     </g>
     <g class="layer layer-forces">
       <circle class="vec-dot" cx="${vecX}" cy="${by}" r="4"/>
       ${lift > 0 ? arrow(vecX, by, vecX, by - vlen(lift, forceRef, 110, 20), 'force', `F = ${f(lift, 0)} N`) : ''}
-      ${arrow(vecX, by, vecX, by + vlen(r.weight, forceRef, 110, 20), 'force', `F${sub('g')} = ${f(r.weight)} N`)}
+      ${arrow(vecX, by, vecX, by + down, 'force', `F${sub('g')} = ${f(r.weight)} N`)}
+      ${s.normal ? arrow(vecX - 14, by, vecX - 14, by - vlen(s.normal, forceRef, 110, 20), 'force', 'N', { labelSide: 'left' }) : ''}
     </g>
     <g class="layer layer-motion">
-      ${arrow(470, barPixelY(0), 470, targetY, 'disp', 's', { dashed: true, labelSide: 'left' })}
+      ${arrow(185, barPixelY(0), 185, targetY, 'disp', 's', { dashed: true, labelSide: 'left' })}
     </g>
   `,
     `Atlet mengangkat barbel ${f(p.mass)} kilogram setinggi ${f(p.height)} meter`
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '165 0 300 380' };
+export const camera = { desktop: '0 0 600 380', portrait: '150 0 360 380' };
 
-/** ± load panel sits top-right, away from the lifter and the barbell on the floor. */
-export const loadOffset = { desktop: [150, -292], portrait: [-10, -292] };
+/** ± load panel sits at the top, away from the lifter and the barbell on the floor. */
+export const loadOffset = { desktop: [150, -292], portrait: [4, -292] };
 
 /** Drag handle for an interactive parameter, in scene coordinates. */
 export function handle(key, p, portrait = false) {
-  return { x: portrait ? 440 : 520, y: barPixelY(p.height), axis: 'y', factor: -1 / PX_PER_M };
+  return { x: portrait ? 492 : 520, y: barPixelY(p.height), axis: 'y', factor: -1 / PX_PER_M };
 }

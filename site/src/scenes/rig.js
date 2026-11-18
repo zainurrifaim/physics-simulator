@@ -46,45 +46,93 @@ export function twoBone(root, target, l1, l2, bend = 1) {
   return { joint, end, reached };
 }
 
-/** Lowest bar height (grip centre) a standing lifter reaches without bending the body. */
-export const STAND_REACH_LOW = BODY.standShoulder - Math.sqrt((BODY.arm * 0.995) ** 2 - (GRIP_HALF - BODY.shoulderHalf) ** 2);
-/** Highest grip height overhead with straight arms. */
-export const OVERHEAD_REACH = BODY.standShoulder + Math.sqrt((BODY.arm * 0.999) ** 2 - (GRIP_HALF - BODY.shoulderHalf) ** 2);
+/** A body with the same proportions scaled to another stature (all lengths in metres). */
+export function scaleBody(stature) {
+  const k = stature / BODY.stature;
+  const out = {};
+  for (const [key, v] of Object.entries(BODY)) out[key] = v * k;
+  return out;
+}
+
+/** Light-weight-class lifter, 1,6 m: the original problem's bar (1,5 m lift) ends above the head. */
+export const LIFTER = scaleBody(1.6);
+export const LIFTER_GRIP_HALF = 0.28;
+
+/** Lowest grip height reachable standing upright, for a body and grip width. */
+export const standReachLow = (B = BODY, grip = GRIP_HALF) => B.standShoulder - Math.sqrt((B.arm * 0.995) ** 2 - (grip - B.shoulderHalf) ** 2);
+/** Highest grip height overhead with (almost) straight arms. */
+export const overheadReach = (B = BODY, grip = GRIP_HALF) => B.standShoulder + Math.sqrt((B.arm * 0.999) ** 2 - (grip - B.shoulderHalf) ** 2);
+export const STAND_REACH_LOW = standReachLow();
+export const OVERHEAD_REACH = overheadReach();
+
+const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) });
+const len3 = (v) => Math.hypot(v.x, v.y, v.z ?? 0);
 
 /**
- * Front-view weightlifter pose.
- * barY: grip height in metres above the floor. grip = false → hands hang at the sides.
- * Low bars are reached by dropping the hips (knees out) and leaning the torso forward
- * (which shortens the torso in front view), never by lengthening the arms.
+ * Two-bone IK in 3-D. The joint bends towards `pole` (a direction), so elbows and knees can
+ * point out of the picture plane and move smoothly; the scene draws the front-view projection.
  */
-export function lifterPose({ barY, grip = true }) {
-  const B = BODY;
-  const dxArm = GRIP_HALF - B.shoulderHalf;
-  let shoulderY = B.standShoulder, hipY = B.standHip, lean = 0;
-  if (grip && barY < STAND_REACH_LOW) {
-    const need = barY + Math.sqrt((B.arm * 0.995) ** 2 - dxArm ** 2);
-    const deficit = B.standShoulder - need;
-    hipY = B.standHip - Math.min(deficit * 0.55, 0.36);
-    const torsoProj = Math.max(B.torso * Math.cos((80 * Math.PI) / 180), need - hipY);
-    lean = Math.acos(Math.min(1, torsoProj / B.torso));
-    shoulderY = hipY + torsoProj;
+export function twoBone3(root, target, l1, l2, pole) {
+  const d = sub3(target, root);
+  const dist = len3(d);
+  const u = dist > 1e-9 ? { x: d.x / dist, y: d.y / dist, z: d.z / dist } : { x: 0, y: -1, z: 0 };
+  const max = l1 + l2, min = Math.abs(l1 - l2);
+  const reached = dist <= max + 1e-9 && dist >= min - 1e-9;
+  const dd = Math.max(min + 1e-9, Math.min(max - 1e-9, dist));
+  const a = (l1 * l1 - l2 * l2 + dd * dd) / (2 * dd);
+  const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  // component of the pole perpendicular to the bone axis
+  const pd = pole.x * u.x + pole.y * u.y + pole.z * u.z;
+  let px = pole.x - pd * u.x, py = pole.y - pd * u.y, pz = pole.z - pd * u.z;
+  const pl = Math.hypot(px, py, pz) || 1;
+  px /= pl; py /= pl; pz /= pl;
+  const joint = { x: root.x + u.x * a + px * h, y: root.y + u.y * a + py * h, z: (root.z ?? 0) + u.z * a + pz * h };
+  const end = reached ? { ...target, z: target.z ?? 0 } : { x: root.x + u.x * dd, y: root.y + u.y * dd, z: (root.z ?? 0) + u.z * dd };
+  return { joint, end, reached };
+}
+
+/**
+ * Front-view weightlifter pose (3-D joints; draw x/y).
+ * barY: grip height above the floor (m). grip = false → hands hang at the sides.
+ * release 0…1 eases from the gripping posture to standing with hands down (after a drop),
+ * so the body never teleports. Low bars are reached by squatting (knees forward and a little
+ * out) and leaning the torso forward, never by lengthening the arms.
+ */
+export function lifterPose({ barY = 0, grip = true, release = 0, body = BODY, gripHalf = GRIP_HALF, barZ = 0.12 } = {}) {
+  const B = body;
+  const rel = grip ? Math.max(0, Math.min(1, release)) : 1;
+  const crouch = 1 - rel;
+  const low = standReachLow(B, gripHalf);
+  let hipY = B.standHip, lean = 0;
+  if (barY < low && crouch > 0) {
+    // shoulders must come down by `deficit` so straight arms reach the bar. The torso lean grows
+    // linearly with the deficit (smooth, no sudden swing near upright); the hips drop the rest.
+    const need = barY + Math.sqrt((B.arm * 0.995) ** 2 - (gripHalf - B.shoulderHalf) ** 2);
+    const deficit = (B.standShoulder - need) * crouch;
+    lean = Math.min(1.2, (1.07 * deficit) / (0.33 * B.stature));
+    hipY = B.standShoulder - deficit - B.torso * Math.cos(lean);
   }
-  const pose = { lean, grip, hip: { y: hipY }, shoulderY };
+  const shoulderY = hipY + B.torso * Math.cos(lean);
+  const shoulderZ = barZ;
+  const hipZ = shoulderZ - B.torso * Math.sin(lean);
+  const pose = { lean, grip: rel < 1, body: B, hip: { y: hipY }, shoulderY };
   for (const side of [-1, 1]) {
     const key = side < 0 ? 'L' : 'R';
-    const hip = { x: side * B.hipHalf, y: hipY };
-    const ankle = { x: side * B.footHalf, y: B.ankleY };
-    // knees point outwards (−x for the left leg, +x for the right)
-    const leg = twoBone(hip, ankle, B.thigh, B.shin, side < 0 ? -1 : 1);
-    const shoulder = { x: side * B.shoulderHalf, y: shoulderY };
-    const hand = grip ? { x: side * GRIP_HALF, y: barY } : { x: side * (B.shoulderHalf + 0.06), y: shoulderY - B.arm * 0.99 };
-    // elbows point outwards (away from the body)
-    const towardDown = hand.y < shoulder.y;
-    const bend = side < 0 ? (towardDown ? -1 : 1) : towardDown ? 1 : -1;
-    const arm = twoBone(shoulder, hand, B.upperArm, B.forearm, bend);
+    const hip = { x: side * B.hipHalf, y: hipY, z: hipZ };
+    const ankle = { x: side * B.footHalf, y: B.ankleY, z: barZ - 0.05 };
+    // knees forward and slightly outward
+    const leg = twoBone3(hip, ankle, B.thigh, B.shin, { x: side * 0.35, y: 0, z: 1 });
+    const shoulder = { x: side * B.shoulderHalf, y: shoulderY, z: shoulderZ };
+    const gripHand = { x: side * gripHalf, y: barY, z: barZ };
+    const hang = { x: side * (B.shoulderHalf + 0.05), y: shoulderY - B.arm * 0.99, z: shoulderZ };
+    const e = rel * rel * (3 - 2 * rel);
+    // released arms swing down in front of the body (an arc), not straight past the shoulder
+    const hand = { x: gripHand.x + (hang.x - gripHand.x) * e, y: gripHand.y + (hang.y - gripHand.y) * e, z: barZ + 0.3 * B.arm * Math.sin(Math.PI * e) };
+    // elbows out and a little back: never parallel to the arm, so they never flip sides
+    const arm = twoBone3(shoulder, hand, B.upperArm, B.forearm, { x: side, y: 0, z: -0.35 });
     pose[key] = { hip, knee: leg.joint, ankle: leg.end, legReached: leg.reached, shoulder, elbow: arm.joint, hand: arm.end, armReached: arm.reached };
   }
-  pose.head = { x: 0, y: shoulderY + B.neck * Math.max(0.45, Math.cos(lean)) };
+  pose.head = { x: 0, y: shoulderY + B.neck * Math.max(0.45, Math.cos(lean)), z: shoulderZ };
   return pose;
 }
 
@@ -110,7 +158,7 @@ export function drawFigure(pose, ox, oy, scale, { shirt = 'shirt' } = {}) {
   const torso = `<path class="${shirt}" d="M${r1(shoulderL.x - w(0.04))} ${r1(shoulderL.y)}Q${r1((shoulderL.x + shoulderR.x) / 2)} ${r1(shoulderL.y - w(0.05))} ${r1(shoulderR.x + w(0.04))} ${r1(shoulderR.y)}L${r1(hipR.x + w(0.07))} ${r1(hipR.y - w(0.04))}H${r1(hipL.x - w(0.07))}Z"/>`;
   const arms = `<path class="limb arm" style="stroke-width:${w(0.085)}" d="${path(L.shoulder, L.elbow, L.hand)}${path(R.shoulder, R.elbow, R.hand)}"/>`;
   const hands = [L, R].map((s) => { const h = P(s.hand); return `<circle class="skin" cx="${r1(h.x)}" cy="${r1(h.y)}" r="${w(0.05)}"/>`; }).join('');
-  const hr = w(BODY.headR);
+  const hr = w((pose.body ?? BODY).headR);
   const headSvg = `<circle class="skin" cx="${r1(head.x)}" cy="${r1(head.y)}" r="${hr}"/><path class="hair" d="M${r1(head.x - hr)} ${r1(head.y - hr * 0.1)}Q${r1(head.x - hr * 0.8)} ${r1(head.y - hr * 1.35)} ${r1(head.x + hr * 0.25)} ${r1(head.y - hr * 1.05)}Q${r1(head.x + hr * 1.05)} ${r1(head.y - hr * 0.95)} ${r1(head.x + hr)} ${r1(head.y - hr * 0.25)}Q${r1(head.x)} ${r1(head.y - hr * 0.65)} ${r1(head.x - hr)} ${r1(head.y - hr * 0.1)}Z"/>`;
   const neck = `<path class="limb arm" style="stroke-width:${w(0.09)}" d="M${r1(head.x)} ${r1(head.y + hr * 0.8)}V${r1((shoulderL.y + shoulderR.y) / 2)}"/>`;
   return `<g class="person rig">${legs}${feet}${shorts}${neck}${torso}${headSvg}${arms}${hands}</g>`;
@@ -118,7 +166,7 @@ export function drawFigure(pose, ox, oy, scale, { shirt = 'shirt' } = {}) {
 
 /** Every segment length in a pose, for invariant tests. */
 export function segmentLengths(pose) {
-  const d = (a, b) => hyp(a.x - b.x, a.y - b.y);
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0));
   return ['L', 'R'].flatMap((k) => [
     ['thigh', d(pose[k].hip, pose[k].knee)],
     ['shin', d(pose[k].knee, pose[k].ankle)],

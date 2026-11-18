@@ -4,7 +4,7 @@
 
 export const live = {
   angkat: (p, r, s, f) =>
-    `h = ${f(s.position, 2)} m · E${'ₚ'} = ${f(s.potential, 0)} J · energi terpakai ${f(s.athleteWork, 0)} / ${f(p.energy)} J`,
+    `h = ${f(s.position, 2)} m · Eₚ = ${f(s.potential, 0)} J${s.phase === 'drop' ? ` · Eₖ = ${f(s.kinetic, 0)} J (jatuh)` : ''} · energi terpakai ${f(s.athleteWork, 0)} / ${f(p.energy)} J`,
   derek: (p, r, s, f) =>
     `t = ${f(s.t, 1)} s · h = ${f(s.position, 1)} m · P = ${f(s.power, 0)} / ${f(p.power)} W`,
   lift: (p, r, s, f) =>

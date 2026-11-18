@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { solve, sample, BAR_REST_HEIGHT, DASH_GAP, G } from '../site/src/physics/models.js';
 import { lessons } from '../site/src/lessons/index.js';
 import { scene } from '../site/src/scenes/index.js';
-import { BODY, GRIP_HALF, segmentLengths } from '../site/src/scenes/rig.js';
+import { LIFTER as BODY, LIFTER_GRIP_HALF as GRIP_HALF, segmentLengths } from '../site/src/scenes/rig.js';
 import { poseFor } from '../site/src/scenes/angkat.js';
 import { parameterSets, frames as framesFor } from './helpers.mjs';
 
@@ -37,9 +37,9 @@ for (const lesson of lessons) {
 test('angkat: limbs keep their length, hands stay on the bar, feet stay on the floor', () => {
   const lesson = lessons.find((l) => l.id === 'angkat');
   for (const [name, p] of parameterSets(lesson)) {
-    const { states } = frames('angkat', p);
+    const { r, states } = frames('angkat', p);
     for (const s of states) {
-      const pose = poseFor(s);
+      const pose = poseFor(s, r);
       for (const [seg, len] of segmentLengths(pose)) near(len, BODY[seg], 1e-6, `${name} t=${s.t} ${seg}`);
       for (const k of ['L', 'R']) {
         near(pose[k].ankle.y, BODY.ankleY, 1e-6, `${name} ankle`);

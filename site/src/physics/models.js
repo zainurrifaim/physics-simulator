@@ -22,6 +22,8 @@ export const MIN_LIFT_SECONDS = 0.8;
 export const HOLD_SECONDS = 0.6;
 /** Barbell centre height when the plates rest on the floor (Ø 450 mm plates). */
 export const BAR_REST_HEIGHT = 0.22;
+/** After a failed lift the athlete lets go and straightens up over this time. */
+export const RELEASE_SECONDS = 0.6;
 
 /** Elevator overspeed governor trips the safety brake at this multiple of rated speed. */
 export const OVERSPEED_TRIP = 1.15;
@@ -66,7 +68,7 @@ export function solveAngkat({ mass, height, energy }) {
   const holdEnd = liftTime + HOLD_SECONDS;
   // Failed lift: the energy is spent below the target, the athlete releases and the bar falls.
   const dropTime = ok ? 0 : Math.sqrt((2 * reachable) / G);
-  const duration = holdEnd + dropTime + (ok ? 0 : 0.3);
+  const duration = holdEnd + (ok ? 0 : Math.max(dropTime + 0.3, RELEASE_SECONDS));
   return {
     weight,
     work,
@@ -99,7 +101,8 @@ function sampleAngkat(p, r, t) {
   const position = Math.max(0, r.reachable - 0.5 * G * td * td);
   const speed = -G * td;
   if (t - r.holdEnd >= r.dropTime) {
-    return { phase: 'dropped', position: 0, speed: 0, acceleration: 0, liftForce: 0, potential: 0, kinetic: 0, athleteWork: top.athleteWork, grip: false };
+    // resting on the floor: the floor's normal force balances the weight
+    return { phase: 'dropped', position: 0, speed: 0, acceleration: 0, liftForce: 0, normal: r.weight, potential: 0, kinetic: 0, athleteWork: top.athleteWork, grip: false };
   }
   return { phase: 'drop', position, speed, acceleration: -G, liftForce: 0, potential: r.weight * position, kinetic: 0.5 * m * speed ** 2, athleteWork: top.athleteWork, grip: false };
 }

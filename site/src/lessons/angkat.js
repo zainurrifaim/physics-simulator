@@ -12,12 +12,12 @@ export default {
   preset: { mass: 20, height: 1.5, energy: 500 },
   fields: [
     { key: 'mass', label: 'Massa barbel', symbol: 'm', unit: 'kg', min: 5, max: 200, step: 1 },
-    { key: 'height', label: 'Tinggi angkat', symbol: 'h', unit: 'm', min: 0.5, max: 1.8, step: 0.1 },
-    { key: 'energy', label: 'Energi mekanik tersedia', symbol: 'E', unit: 'J', min: 50, max: 5000, step: 10 },
+    { key: 'height', label: 'Tinggi angkat', symbol: 'h', unit: 'm', min: 0.5, max: 1.6, step: 0.1 },
+    { key: 'energy', label: 'Energi tersedia', symbol: 'E', unit: 'J', min: 50, max: 5000, step: 10 },
   ],
   formula: 'E<sub>p</sub> = m · g · h',
   assumptions:
-    'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel mulai dan berhenti dengan lembut: gaya angkat sedikit lebih besar dari berat saat mempercepat dan sedikit lebih kecil saat memperlambat, sehingga usaha totalnya tetap m · g · h. Atlet setinggi 1,8 m hanya dapat menjangkau sekitar 2,1 m di atas lantai, jadi tinggi angkat dibatasi 1,8 m. Bila energi habis sebelum target, barbel berhenti lalu dilepas dan jatuh bebas. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
+    'Energi atlet dianggap seluruhnya menjadi energi mekanik (efisiensi ideal). Barbel mulai dan berhenti dengan lembut: gaya angkat lebih besar dari berat saat mempercepat dan lebih kecil saat memperlambat (pada angkatan cepat bisa berbeda sampai sekitar ⅔ berat), tetapi usaha totalnya tetap m · g · h. h diukur dari posisi barbel di lantai. Atlet kelas ringan setinggi 1,6 m menjangkau sekitar 1,86 m di atas lantai, jadi tinggi angkat dibatasi 1,6 m. Menahan barbel diam tidak memerlukan usaha (perpindahan nol). Bila energi habis sebelum target, barbel berhenti lalu dilepas dan jatuh bebas. Cukup energi belum tentu berarti cukup kuat — itu soal gaya, bukan energi.',
   compare: {
     question: 'Energi atlet 500 J. Barbel 20 kg atau 40 kg — mana yang sampai ke atas kepala?',
     sub: 'Atlet yang sama mengangkat barbel setinggi 1,5 m. Massa B dua kali massa A. g = 10 m/s².',
@@ -32,19 +32,19 @@ export default {
     caption: (A, rA, B, rB, f) => `E<sub>p</sub> = m · g · h — massa ${f(B.mass / A.mass, 2)}×, energi yang dibutuhkan ${f(rB.work / rA.work, 2)}×`,
     verdict: (A, rA, B, rB, f) =>
       rA.ok && !rB.ok ? 'Hanya A. Massa dua kali lipat butuh energi dua kali lipat — 600 J melebihi 500 J.' : rA.ok && rB.ok ? 'Keduanya cukup.' : !rA.ok && !rB.ok ? 'Tidak ada yang cukup.' : 'Hanya B.',
-    diagram: 'Diagram gaya pada barbel',
+    diagram: 'Diagram gaya pada barbel (saat ditahan / kecepatan tetap)',
     forces: (p, r) => [
       { dx: 0, dy: -1, value: r.weight, label: 'F' },
       { dx: 0, dy: 1, value: r.weight, label: 'F<tspan class="sub" dy="4">g</tspan>' },
     ],
-    graph: { label: 'energi potensial', unit: 'J', fn: (s) => s.potential, line: (p) => ({ value: p.energy, label: 'energi atlet' }) },
+    graph: { label: 'energi yang sudah dipakai atlet', unit: 'J', fn: (s) => s.athleteWork, line: (p) => ({ value: p.energy, label: 'energi tersedia' }) },
   },
   worked: (p, r, f) => [
     `F<sub>g</sub> = m · g = ${f(p.mass)} × 10 = ${f(r.weight)} N`,
     `W = E<sub>p</sub> = m · g · h = ${f(p.mass)} × 10 × ${f(p.height)} = <b>${f(r.work)} J</b>`,
     r.ok
       ? `Energi tersedia ${f(p.energy)} J ≥ ${f(r.work)} J → atlet <b>bisa</b> mengangkat barbel (model ideal).`
-      : `Energi tersedia ${f(p.energy)} J < ${f(r.work)} J → barbel hanya mencapai h = E / (mg) = ${f(r.reachable, 2)} m.`,
+      : `Energi tersedia ${f(p.energy)} J < ${f(r.work)} J → h<sub>maks</sub> = E / (m · g) = ${f(p.energy)} / (${f(p.mass)} × 10) = ${f(r.reachable, 2)} m < ${f(p.height)} m → atlet <b>tidak bisa</b> mengangkat barbel ke target.`,
   ],
   worksheet: {
     question: 'Berapa energi potensial (usaha) yang dibutuhkan untuk mengangkat barbel pada soal asli?',

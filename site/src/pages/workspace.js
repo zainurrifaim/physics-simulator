@@ -153,7 +153,7 @@ export function renderWorkspace(main, lesson) {
     $('#verdict').textContent = original() ? `${draft.prediction === undefined ? '' : draft.prediction === cmp.correct ? 'Prediksimu tepat. ' : 'Bandingkan dengan prediksimu. '}${cmp.verdict(st.A, st.rA, st.B, st.rB, fmt)}` : `A: ${cmp.detail(st.A, st.rA, fmt)}. B: ${cmp.detail(st.B, st.rB, fmt)}. Prediksi di awal berlaku untuk soal awal.`;
     $('.analysis-select').value = st.analysis;
     const portrait = window.matchMedia('(max-width: 600px)').matches;
-    $('#analysis-view').innerHTML = st.analysis === 'graph' ? compareChart(lesson, cases(), total(), st.t, { reveal: true, tall: portrait }) : st.analysis === 'forces' ? forceDiagram(lesson, cases(), { stacked: portrait }) : `<h3>Perhitungan situasi A</h3><ol class="worked">${lesson.worked(st.A, st.rA, fmt).map((line) => `<li>${line}</li>`).join('')}</ol>`;
+    $('#analysis-view').innerHTML = st.analysis === 'graph' ? compareChart(lesson, cases(), total(), st.t, { reveal: true, tall: portrait }) : st.analysis === 'forces' ? forceDiagram(lesson, cases(), { stacked: portrait }) : ['A', 'B'].map((c) => `<h3 class="case-${c.toLowerCase()}">Perhitungan situasi ${c}</h3><ol class="worked">${lesson.worked(st[c], st[`r${c}`], fmt).map((line) => `<li>${line}</li>`).join('')}</ol>`).join('');
   }
   function renderTask() {
     const blocks = [...$('#lembar').querySelectorAll('.ws-block')];

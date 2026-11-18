@@ -61,6 +61,6 @@ test('charts include both independent limits when A/B settings differ', () => {
   const pA = { ...l.preset }, pB = { ...l.preset, energy: 800 };
   const cases = [{ p: pA, r: solve(l.id, pA), cls: 'a' }, { p: pB, r: solve(l.id, pB), cls: 'b' }];
   const chart = compareChart(l, cases, 2, 0);
-  assert.match(chart, /A · energi atlet 500 J/);
-  assert.match(chart, /B · energi atlet 800 J/);
+  assert.match(chart, /A · energi tersedia 500 J/);
+  assert.match(chart, /B · energi tersedia 800 J/);
 });
