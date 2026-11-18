@@ -52,8 +52,8 @@ test('drag mapping follows the geometry and moving upward increases target heigh
 
 test('custom elevator comparisons report braking power rather than the worksheet capacity', () => {
   const l = byId('lift');
-  assert.deepEqual(comparisonValue(l.id, solve(l.id, l.preset)), { value: 10000, unit: 'W' });
-  assert.deepEqual(comparisonValue(l.id, solve(l.id, { ...l.preset, payload: 2500 })), { value: 12500, unit: 'W' });
+  assert.deepEqual(comparisonValue(l.id, solve(l.id, l.preset)), { value: 10000, unit: 'W', label: 'P rem' });
+  assert.deepEqual(comparisonValue(l.id, solve(l.id, { ...l.preset, payload: 2500 })), { value: 12500, unit: 'W', label: 'P rem' });
 });
 
 test('charts include both independent limits when A/B settings differ', () => {

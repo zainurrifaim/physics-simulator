@@ -13,17 +13,17 @@ export const PX_PER_M = 7.5;
 export const CABIN_W = 2.1;           // m
 export const CABIN_H = 2.5;           // m
 export const SHAFT_W = 3.4;           // m
-export const SHAFT_X = 505;           // shaft centre line (px)
+export const SHAFT_X = 423;           // shaft centre line (px)
 export const SHAFT_TOP = 10;          // top of the machine beam (px)
 export const PULLEY = { x: SHAFT_X, y: 21, r: 5 };
 export const PIT_DEPTH = 1.2;         // m below the lowest landing (buffer pit)
 
 export const INSET_SCALE = 75;        // px per m in the callout (10 × the shaft scale)
-export const INSET = { x: 214, y: 40, w: 218, h: 266 };
+export const INSET = { x: 186, y: 40, w: 210, h: 266 };
 const INSET_NOTE = 14;                // strip at the bottom of the callout for the legend
 const INSET_HEADER = 48;              // header band height (px)
 const INSET_FLOOR = 288;              // y of the cabin floor inside the callout
-const INSET_CAB_X = 240;              // left outer wall of the cabin inside the callout
+const INSET_CAB_X = 212;              // left outer wall of the cabin inside the callout
 const WALL = 0.05;                    // m, cabin wall thickness
 export const BLOCK_KG = 250;
 export const BLOCK = Math.cbrt(BLOCK_KG / 7850); // m, edge of a 250 kg steel cube (≈ 0,317 m)
@@ -35,6 +35,16 @@ const PASSENGER_X = 0.36;             // m from the cabin's left outer wall
 export const yOf = (h) => GROUND - h * PX_PER_M;
 const r1 = (v) => Math.round(v * 10) / 10;
 const BRAKED = new Set(['braking', 'stopped']);
+const FAILED = new Set(['overspeed', 'braking', 'stopped', 'buffer']);
+export const BUFFER_GAP = 0.4;        // m between the lowest landing and the top of the buffers
+/** Landings closer than this (m) get staggered handles and one combined label. */
+export const CLOSE = 6;
+export const HANDLE_X = { top: 585, bottom: 585, staggered: 522 };
+/** Gauges: desktop column on the left; compact strip below the scene, seen only in portrait. */
+export const GAUGES = {
+  desktop: { x: 18, y: 196, w: 158, dy: 58, power: 'Daya rem mesin' },
+  portrait: { x: 460, y: 408, w: 124, dy: 44, power: 'Daya rem' },
+};
 
 /** Everything in the callout that does not move (it shows the cabin, not the shaft). */
 export function insetGeometry(p) {
@@ -70,7 +80,7 @@ export function geometry(p, r, s) {
   const shaft = { x: SHAFT_X - sw / 2, y: SHAFT_TOP, w: sw, h: bottom - SHAFT_TOP, bottom, pitY };
   const y1 = PULLEY.y + PULLEY.r;
   const cable = { x: SHAFT_X, y1, y2: cabin.y, length: cabin.y - y1 };
-  const floors = { top: yOf(p.top), bottom: yOf(p.bottom) };
+  const floors = { top: yOf(p.top), bottom: yOf(p.bottom), bufferTop: yOf(p.bottom - BUFFER_GAP) };
   return { cabin, shaft, cable, floors, inset: INSET };
 }
 
@@ -103,36 +113,64 @@ function spring(x, yTop, yBottom, half = 4) {
   return `<path class="buffer-spring" d="${d}L${x} ${r1(yTop)}"/>`;
 }
 
+/** Two-line status box above the callout (fits between the left column and the shaft beam). */
+function statusBox(cx, lines, cls = '') {
+  const len = (t) => t.replace(/<[^>]+>/g, '').length;
+  const w = Math.max(...lines.map(len)) * 6.6 + 22;
+  return `<g class="lift-status ${cls}"><rect x="${r1(cx - w / 2)}" y="3" width="${r1(w)}" height="34" rx="8"/>
+    <text class="status-main" x="${cx}" y="17" text-anchor="middle">${lines[0]}</text>
+    <text class="status-sub" x="${cx}" y="31" text-anchor="middle">${lines[1]}</text></g>`;
+}
+
+/** Status text for a sampled state. At t = 0 it is neutral so a preview never gives the answer away. */
+export function statusLines(p, r, s, f) {
+  const vd = r.speed < 0.1 ? 3 : 2;
+  if (!(s.t > 0)) return { cls: '', lines: ['Siap turun', `dari h₁ = ${f(p.top)} m ke h₂ = ${f(p.bottom)} m`] };
+  if (s.phase === 'arrived') return { cls: 'ok', lines: [`Tiba di h₂ = ${f(p.bottom)} m`, 'berhenti di lantai tujuan'] };
+  if (s.phase === 'descend') return { cls: '', lines: ['Turun dengan kecepatan tetap', `v = ${f(s.speed, vd)} m/s`] };
+  if (s.phase === 'overspeed') return { cls: 'warn', lines: ['Rem mesin kurang kuat', 'kabin makin cepat'] };
+  if (BRAKED.has(s.phase)) return { cls: 'warn', lines: ['Rem darurat aktif', `berhenti di ${f(r.stopHeight, 2)} m`] };
+  return { cls: 'warn', lines: ['Menghantam peredam', `v = ${f(r.impactSpeed, vd)} m/s`] };
+}
+
 export function render(p, r, s, f) {
   const g = geometry(p, r, s);
   const { cabin, shaft, cable, floors } = g;
   const ins = insetGeometry(p);
-  const braked = BRAKED.has(s.phase);
-  const failed = ['overspeed', 'braking', 'stopped', 'buffer'].includes(s.phase);
+  const live = s.t > 0;                         // t = 0 is the neutral prediction preview
+  const failed = live && FAILED.has(s.phase);
+  const braked = live && BRAKED.has(s.phase);
+  const moving = ['descend', 'overspeed', 'braking'].includes(s.phase);
   const vd = r.speed < 0.1 ? 3 : 2;
+  const close = p.top - p.bottom < CLOSE;
+  const right = shaft.x + shaft.w;
 
   // ---- shaft view (true scale)
   const ticks = [];
   for (let h = 0; h <= 40; h += 5) {
     const y = yOf(h);
-    const near = Math.abs(h - p.top) < 1.5 || Math.abs(h - p.bottom) < 1.5;
-    ticks.push(`<path class="floor-mark" d="M${r1(shaft.x + shaft.w)} ${y}h6"/>${near ? '' : `<text class="floor-text" x="${r1(shaft.x + shaft.w + 9)}" y="${y + 4}">${h}</text>`}`);
+    const near = Math.abs(h - p.top) <= 3 || Math.abs(h - p.bottom) <= 3 || (close && h < p.bottom && h > p.bottom - 5.5);
+    ticks.push(`<path class="floor-mark" d="M${r1(right)} ${y}h5"/>${near ? '' : `<text class="floor-text" x="${r1(right + 8)}" y="${y + 4}">${h}</text>`}`);
   }
-  const landing = (y) => `<path class="landing" d="M${r1(shaft.x - 8)} ${r1(y)}H${r1(shaft.x)}M${r1(shaft.x + shaft.w)} ${r1(y)}h8"/>`;
-  const bufferTop = floors.bottom;           // cabin floor touches the buffer at the lowest landing
-  const clamp = braked ? `<rect class="brake-mark" x="${r1(shaft.x + 0.4)}" y="${r1(cabin.floorY - 6)}" width="3" height="6"/><rect class="brake-mark" x="${r1(shaft.x + shaft.w - 3.4)}" y="${r1(cabin.floorY - 6)}" width="3" height="6"/>` : '';
+  // landing: short stub on the left, a line on the right that runs to its drag handle
+  const landing = (key) => {
+    const y = r1(floors[key]);
+    return `<path class="landing" d="M${r1(shaft.x - 6)} ${y}H${r1(shaft.x)}M${r1(right)} ${y}h6"/><path class="landing-line" d="M${r1(right + 6)} ${y}H${handle(key, p).x - 15}"/>`;
+  };
+  const bufferTop = s.phase === 'buffer' ? cabin.floorY : floors.bufferTop;
+  const clamp = braked ? `<rect class="brake-mark" x="${r1(shaft.x + 0.4)}" y="${r1(cabin.floorY - 6)}" width="3" height="6"/><rect class="brake-mark" x="${r1(right - 3.4)}" y="${r1(cabin.floorY - 6)}" width="3" height="6"/>` : '';
   const shaftView = `
     <rect class="shaft" x="${r1(shaft.x)}" y="${shaft.y}" width="${r1(shaft.w)}" height="${r1(shaft.h)}"/>
-    <path class="shaft-rail" d="M${r1(shaft.x + 2)} ${shaft.y + 10}V${r1(shaft.bottom)}M${r1(shaft.x + shaft.w - 2)} ${shaft.y + 10}V${r1(shaft.bottom)}"/>
-    <rect class="pit" x="${r1(shaft.x)}" y="${r1(bufferTop)}" width="${r1(shaft.w)}" height="${r1(shaft.pitY - bufferTop)}"/>
+    <path class="shaft-rail" d="M${r1(shaft.x + 2)} ${shaft.y + 10}V${r1(shaft.bottom)}M${r1(right - 2)} ${shaft.y + 10}V${r1(shaft.bottom)}"/>
+    <rect class="pit" x="${r1(shaft.x)}" y="${r1(floors.bottom)}" width="${r1(shaft.w)}" height="${r1(shaft.pitY - floors.bottom)}"/>
     ${shaft.bottom > shaft.pitY + 0.5 ? `<rect class="pit-fill" x="${r1(shaft.x)}" y="${r1(shaft.pitY)}" width="${r1(shaft.w)}" height="${r1(shaft.bottom - shaft.pitY)}"/>` : ''}
-    ${spring(SHAFT_X - 5, bufferTop + 1, shaft.pitY, 2.5)}${spring(SHAFT_X + 5, bufferTop + 1, shaft.pitY, 2.5)}
-    ${landing(floors.top)}${landing(floors.bottom)}
+    ${spring(SHAFT_X - 5, bufferTop, shaft.pitY, 2.5)}${spring(SHAFT_X + 5, bufferTop, shaft.pitY, 2.5)}
+    ${landing('top')}${landing('bottom')}
     <rect class="beam" x="${r1(shaft.x - 8)}" y="${SHAFT_TOP}" width="${r1(shaft.w + 16)}" height="7" rx="2"/>
     <rect class="lift-machine" x="${SHAFT_X - 9}" y="${SHAFT_TOP - 8}" width="18" height="8" rx="2"/>
     <circle class="pulley" cx="${PULLEY.x}" cy="${PULLEY.y}" r="${PULLEY.r}"/>
     ${ticks.join('')}
-    <text class="floor-text" x="${r1(shaft.x + shaft.w + 9)}" y="${GROUND + 16}">m</text>
+    <text class="floor-text" x="${r1(right + 8)}" y="${GROUND + 16}">m</text>
     <path class="cable" d="M${cable.x} ${cable.y1}V${r1(cable.y2)}"/>
     <g class="cabin${failed ? ' fail' : ''}">
       <rect x="${r1(cabin.x)}" y="${r1(cabin.y)}" width="${r1(cabin.w)}" height="${r1(cabin.h)}" rx="1"/>
@@ -156,10 +194,11 @@ export function render(p, r, s, f) {
   };
   const pose = lifterPose({ barY: 0, grip: false });
   const blocks = ins.blocks.map((b) => `<rect class="steel${b.kg < BLOCK_KG ? ' part' : ''}" x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.w)}" height="${r1(b.h)}" rx="1.5"/>`).join('');
+  const dx = INSET.x + INSET.w - 50;
   const display = `
-    <rect class="lift-display" x="${INSET.x + INSET.w - 98}" y="${INSET.y + 6}" width="92" height="36" rx="4"/>
-    <text class="display-big" x="${INSET.x + INSET.w - 52}" y="${INSET.y + 22}" text-anchor="middle">${['descend', 'overspeed', 'braking'].includes(s.phase) ? '▼' : '■'} ${f(s.position, 1)} m</text>
-    <text class="display-small${s.speed > r.speed * 1.0001 ? ' warn' : ''}" x="${INSET.x + INSET.w - 52}" y="${INSET.y + 36}" text-anchor="middle">v = ${f(s.speed, vd)} m/s</text>`;
+    <rect class="lift-display" x="${dx - 46}" y="${INSET.y + 6}" width="92" height="36" rx="4"/>
+    <text class="display-big" x="${dx}" y="${INSET.y + 22}" text-anchor="middle">${moving ? '▼' : '■'} ${f(s.position, moving ? 1 : 2)} m</text>
+    <text class="display-small${failed && s.speed > r.speed * 1.0001 ? ' warn' : ''}" x="${dx}" y="${INSET.y + 36}" text-anchor="middle">v = ${f(s.speed, vd)} m/s</text>`;
   const inset = `
     <g class="lift-inset">
       <rect class="inset-frame" x="${INSET.x}" y="${INSET.y}" width="${INSET.w}" height="${INSET.h}" rx="6"/>
@@ -185,27 +224,28 @@ export function render(p, r, s, f) {
   // ---- live readouts (from the sampled state only; limits from r)
   const vMax = OVERSPEED_TRIP * r.speed * 1.12;
   const peak = r.outcome === 'safety' ? OVERSPEED_TRIP * r.speed : r.outcome === 'buffer' ? r.impactSpeed : 0;
-  const speedMarks = [
-    { value: r.speed, label: 'normal', anchor: 'end' },
-    { value: OVERSPEED_TRIP * r.speed, label: '115%', cls: 'limit', anchor: 'start' },
-  ];
   const showPeak = failed && peak > 0 && s.speed < peak - 1e-9;
-  const pMax = Math.min(Math.max(p.power, r.absorbed) * 1.08, p.power * 1.6);
-  const powerMarks = [{ value: p.power, label: 'maks', cls: 'limit', anchor: r.absorbed > p.power ? 'end' : 'middle' }];
-  if (r.absorbed > p.power) powerMarks.push({ value: r.absorbed, label: `perlu ${f(r.absorbed)} W${r.absorbed > pMax ? ' ▸' : ''}`, cls: 'need', anchor: 'end', row: 1 });
-  const readouts = `
-    <g class="lift-readouts">
-      ${gauge(22, 196, 168, 'Laju turun', s.speed, vMax, speedMarks, `${f(s.speed, vd)} m/s`, s.speed > r.speed * 1.0001 || showPeak ? 'warn' : '', showPeak ? peak : 0)}
-      ${gauge(22, 254, 168, 'Daya rem mesin', s.drivePower, pMax, powerMarks, `${f(s.drivePower)} W`, r.ok ? 'ok' : 'warn')}
-    </g>`;
+  const showNeed = live && !r.ok && r.absorbed > p.power;
+  const pMax = Math.min(Math.max(p.power, showNeed ? r.absorbed : 0) * 1.08, p.power * 1.6);
+  const readouts = (G0) => {
+    const speedMarks = [
+      { value: r.speed, label: 'normal', anchor: 'end' },
+      { value: OVERSPEED_TRIP * r.speed, label: '115%', cls: 'limit', anchor: 'start' },
+    ];
+    const powerMarks = [{ value: p.power, label: 'maks', cls: 'limit', anchor: showNeed ? 'end' : 'middle' }];
+    if (showNeed) powerMarks.push({ value: r.absorbed, label: `perlu ${f(r.absorbed)} W${r.absorbed > pMax ? ' ▸' : ''}`, cls: 'need', anchor: 'end', row: 1 });
+    return `
+      ${gauge(G0.x, G0.y, G0.w, 'Laju turun', s.speed, vMax, speedMarks, `${f(s.speed, vd)} m/s`, failed ? 'warn' : '', showPeak ? peak : 0)}
+      ${gauge(G0.x, G0.y + G0.dy, G0.w, G0.power, s.drivePower, pMax, powerMarks, `${f(s.drivePower)} W`, failed ? 'warn' : 'ok')}`;
+  };
 
-  // ---- status, from the phase
-  const sx = INSET.x + INSET.w / 2;
-  const status = s.phase === 'arrived' ? tag(sx, 24, `Tiba di h${sub('2')} = ${f(p.bottom)} m`, 'ok')
-    : s.phase === 'descend' ? tag(sx, 24, 'Turun dengan kecepatan tetap')
-    : s.phase === 'overspeed' ? tag(sx, 24, 'Rem mesin kurang kuat · makin cepat', 'warn')
-    : braked ? tag(sx, 24, `Rem darurat aktif · berhenti di ${f(r.stopHeight, 2)} m`, 'warn')
-    : tag(sx, 24, `Menghantam peredam · ${f(r.impactSpeed, vd)} m/s`, 'warn');
+  // ---- labels
+  const st = statusLines(p, r, s, f);
+  const hText = (k) => `${k === 'top' ? 'h₁' : 'h₂'} = ${f(p[k])} m`;
+  const missed = failed && s.phase !== 'buffer' ? ' missed' : '';
+  const levelLabels = close
+    ? `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.bottom + 30)}">${hText('top')} · <tspan class="${missed}">${hText('bottom')}</tspan></text>`
+    : `<text class="level-text" x="${r1(right + 8)}" y="${r1(floors.top + 13)}">${hText('top')}</text><text class="level-text${missed}" x="${r1(right + 8)}" y="${r1(floors.bottom + 13)}">${hText('bottom')}</text>`;
 
   // ---- forces on the cabin (drawn in the callout, at its centre)
   const up = supportForce(r, s);
@@ -219,16 +259,15 @@ export function render(p, r, s, f) {
     <rect class="floor" x="0" y="${GROUND}" width="600" height="28"/>
     ${shaftView}
     ${inset}
-    ${readouts}
+    <g class="lift-readouts">${readouts(GAUGES.desktop)}</g>
+    <g class="lift-readouts compact">${readouts(GAUGES.portrait)}</g>
     <g class="layer layer-labels">
-      <path class="target-line" d="M${r1(shaft.x - 50)} ${r1(floors.top)}H${r1(shaft.x - 2)}"/><path class="target-line" d="M${r1(shaft.x - 50)} ${r1(floors.bottom)}H${r1(shaft.x - 2)}"/>
-      <text class="level-text" x="${r1(shaft.x - 6)}" y="${r1(floors.top - 3)}" text-anchor="end">h${sub('1')} = ${f(p.top)} m</text>
-      <text class="level-text${failed && s.phase !== 'buffer' ? ' missed' : ''}" x="${r1(shaft.x - 6)}" y="${r1(floors.bottom + 12)}" text-anchor="end">h${sub('2')} = ${f(p.bottom)} m</text>
-      ${tag(106, 30, `m${sub('lift')} = ${f(p.cabin)} kg`)}
-      ${tag(106, 60, `muatan = ${f(p.payload)} kg`, r.ok ? '' : 'warn')}
-      ${tag(106, 90, `P maks = ${f(p.power)} W`, 'accent')}
-      ${tag(106, 120, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}
-      ${status}
+      ${levelLabels}
+      ${tag(96, 30, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
+      ${tag(96, 60, `muatan = ${f(p.payload)} kg`, failed && p.payload > 0 ? 'warn' : '')}
+      ${tag(96, 90, `P maks = ${f(p.power)} W`, 'accent')}
+      ${tag(96, 120, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}
+      ${statusBox(INSET.x + INSET.w / 2, st.lines, st.cls)}
     </g>
     <g class="layer layer-forces">
       <circle class="vec-dot" cx="${r1(fx)}" cy="${r1(fy)}" r="4"/>
@@ -237,19 +276,21 @@ export function render(p, r, s, f) {
     </g>
     <g class="layer layer-motion">
       ${s.speed > 1e-9 ? arrow(vx, fy, vx, fy + vlen(s.speed, OVERSPEED_TRIP * r.speed, 60, 10), 'velocity', 'v', { labelSide: 'left' }) : ''}
-      ${arrow(shaft.x + shaft.w + 22, floors.top, shaft.x + shaft.w + 22, cabin.floorY, 'disp', '', { dashed: true })}
+      ${arrow(INSET.x + INSET.w + 7, floors.top, INSET.x + INSET.w + 7, cabin.floorY, 'disp', '', { dashed: true })}
     </g>
   `,
     `Lift turun dari ${f(p.top)} meter ke ${f(p.bottom)} meter`
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '206 0 394 380' };
+export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 492' };
 
-/** The ± payload panel: under the callout on desktop, inside the narrow portrait view. */
-export const loadOffset = { desktop: [0, 0], portrait: [40, 0] };
+/** The ± payload panel: under the left column on desktop, below the scene in portrait. */
+export const loadOffset = { desktop: [-18, 0], portrait: [10, 80] };
 
-/** Drag handle for an interactive parameter, on the drawn landing, in scene coordinates. */
+/** Drag handle for an interactive parameter, on its landing line; staggered when the landings are close. */
 export function handle(key, p) {
-  return { x: key === 'top' ? 552 : 583, y: yOf(p[key]), axis: 'y', factor: -1 / PX_PER_M };
+  const close = p.top - p.bottom < CLOSE;
+  const x = key === 'bottom' && close ? HANDLE_X.staggered : HANDLE_X[key];
+  return { x, y: yOf(p[key]), axis: 'y', factor: -1 / PX_PER_M };
 }

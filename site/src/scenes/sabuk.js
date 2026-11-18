@@ -18,7 +18,7 @@ const WALL_TOP = 150;
 const d2r = Math.PI / 180;
 /** Readout panel, status tag and left tags: inside the portrait camera (x 10…590). */
 export const READOUT = { x: 386, y: 16, w: 196, h: 98 };
-export const STATUS = { x: 360, y: 134 };
+export const STATUS = { x: 484, y: 134 };   // under the readout panel
 const TAG_X = 104;
 /** Left tags sit below the speed setup guide and its label (y ≈ 40…85). */
 export const TAG_Y = [98, 122, 146, 170];
@@ -218,6 +218,58 @@ function wheel(w, angle) {
   return `<g class="wheel"><circle cx="${r1(w.x)}" cy="${r1(w.y)}" r="${r1(w.r)}"/><circle class="hub" cx="${r1(w.x)}" cy="${r1(w.y)}" r="${r1(w.r * 0.62)}"/><path class="spokes" d="${spokes}"/></g>`;
 }
 
+/**
+ * Free-body diagram of the dummy (always visible, top left above the car). Forces are drawn
+ * from one point to ONE scale for every setup, so A and B can be compared; a force too long
+ * for the panel is drawn dashed and marked "tidak berskala".
+ */
+export const FBD = { x: 14, y: 92, w: 280, h: 84, k: 0.012, maxLen: 168 };
+
+export function fbdForces(p, s) {
+  const W = p.mass * 10;
+  const list = [];
+  if (s.beltForce > 0) list.push({ key: 'sabuk', dx: -1, dy: 0, value: s.beltForce });
+  if (s.dashForce > 0) list.push({ key: 'dasbor', dx: -1, dy: 0, value: s.dashForce });
+  list.push({ key: 'N', dx: 0, dy: -1, value: W }, { key: 'g', dx: 0, dy: 1, value: W });
+  return list.map((F) => {
+    const raw = F.value * FBD.k;
+    return { ...F, len: Math.max(4, Math.min(raw, F.dx ? FBD.maxLen : 18)), scaled: raw <= (F.dx ? FBD.maxLen : 18) };
+  });
+}
+
+function fbdPanel(p, r, s, f) {
+  const { x, y, w, h } = FBD;
+  const cx = x + 200, cy = y + 38;
+  const forces = fbdForces(p, s);
+  const W = p.mass * 10;
+  const arrows = forces.map((F) => {
+    const ex = cx + F.dx * F.len, ey = cy + F.dy * F.len;
+    const head = arrow(cx, cy, ex, ey, 'force', '');
+    const cls = F.scaled ? '' : ' clamped';
+    if (F.dx) {
+      const name = F.key === 'sabuk' ? `F${sub('sabuk')}` : `F${sub('dasbor')}`;
+      return `<g class="fbd-h${cls}">${head}<text class="fbd-label" x="${r1(cx - 10)}" y="${cy - 8}" text-anchor="end">${name} = ${f(F.value, 0)} N${F.scaled ? '' : ' (tidak berskala)'}</text></g>`;
+    }
+    return `${head}<text class="fbd-label" x="${cx + 9}" y="${F.key === 'N' ? cy - 6 : cy + 14}">${F.key === 'N' ? 'N' : `F${sub('g')}`} = ${f(W, 0)} N</text>`;
+  }).join('');
+  const sum = forces.filter((F) => F.dx).reduce((a, F) => a + F.value, 0);
+  const torn = !s.beltIntact;
+  const [n1, n2] = s.phase === 'ready' ? ['Sebelum menabrak: N = F' + sub('g') + ', ΣF = 0', 'dummy bergerak bersama mobil']
+    : s.phase === 'braking' ? [`ΣF = F${sub('sabuk')} = m · |a| = ${f(p.mass)} × ${f(Math.abs(r.acceleration), 0)} = ${f(sum, 0)} N`, 'ke belakang → dummy melambat bersama mobil']
+    : s.phase === 'stopped' ? ['Diam: N = F' + sub('g') + ', ΣF = 0', 'sabuk tidak lagi menarik']
+    : s.phase === 'torn' ? ['Sabuk robek: tidak ada gaya mendatar', `→ dummy tetap ${f(r.v0, 1)} m/s, mobil melambat`]
+    : s.phase === 'impact' ? [`Membentur dasbor · kecepatan relatif ${f(r.impactSpeed, 1)} m/s`, s.dashForce > 0 ? `Δp = m · v = ${f(r.impulse, 0)} N·s; lalu dasbor mendorong` : `Δp = m · v = ${f(r.impulse, 0)} N·s · kini diam: ΣF = 0`]
+    : ['', ''];
+  return `<g class="fbd-panel${torn ? ' torn' : ''}">
+    <rect class="fbd-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>
+    <text class="fbd-title" x="${x + 8}" y="${y + 14}">Diagram gaya pada dummy (m = ${f(p.mass)} kg)</text>
+    ${arrows}
+    <circle class="fbd-dot" cx="${cx}" cy="${cy}" r="4"/>
+    <text class="fbd-note" x="${x + 8}" y="${y + h - 21}">${n1}</text>
+    <text class="fbd-note" x="${x + 8}" y="${y + h - 6}">${n2}</text>
+  </g>`;
+}
+
 function readout(p, r, s, f) {
   const x0 = READOUT.x, y0 = READOUT.y, wBar = 92;
   const bar = (y, frac, cls) => `<rect class="ro-track" x="${x0 + 62}" y="${y - 7}" width="${wBar}" height="9" rx="3"/><rect class="ro-bar ${cls}" x="${x0 + 62}" y="${y - 7}" width="${r1(Math.max(0, Math.min(1, frac)) * wBar)}" height="9" rx="3"/>`;
@@ -302,7 +354,7 @@ export function render(p, r, s, f) {
   const gapDim = gapM > 0.12
     ? `<g class="gap-dim"><path d="M${r1(pose.chest.x)} ${r1(gapY)}H${r1(g.dash.x)}M${r1(pose.chest.x)} ${r1(gapY - 4)}v8M${r1(g.dash.x)} ${r1(gapY - 4)}v8"/><text x="${r1((pose.chest.x + g.dash.x) / 2)}" y="${r1(gapY - 6)}" text-anchor="middle">${f(gapM, 2)} m</text></g>`
     : '';
-  const status = impact ? tag(STATUS.x, STATUS.y, `Membentur dasbor · kecepatan relatif ${f(r.impactSpeed, 1)} m/s`, 'warn')
+  const status = impact ? tag(STATUS.x, STATUS.y, 'Membentur dasbor!', 'warn')
     : torn ? tag(STATUS.x, STATUS.y, 'SABUK ROBEK!', 'warn')
     : s.phase === 'braking' ? tag(STATUS.x, STATUS.y, 'Sabuk menahan', 'ok')
     : s.phase === 'stopped' ? tag(STATUS.x, STATUS.y, 'Sabuk menahan · dummy aman', 'ok') : '';
@@ -342,11 +394,8 @@ export function render(p, r, s, f) {
       ${burst}
     </g>
     ${zone}
+    ${fbdPanel(p, r, s, f)}
     <g class="layer layer-labels">
-      ${tag(TAG_X, TAG_Y[0], `v${sub('0')} = ${f(p.speed)} km/jam (${f(r.v0, 1)} m/s)`, 'accent')}
-      ${tag(TAG_X, TAG_Y[1], `m${sub('dummy')} = ${f(p.mass)} kg`)}
-      ${tag(TAG_X, TAG_Y[2], `M${sub('mobil')} = ${f(p.carMass)} kg`)}
-      ${tag(TAG_X, TAG_Y[3], `Sabuk robek ≥ ${f(p.limit)} N`)}
       ${readout(p, r, s, f)}
       ${status}
       ${gapDim}
@@ -364,8 +413,9 @@ export function render(p, r, s, f) {
         const lx = Math.max(tip, P({ x: CAR.cabinRear + 0.04, y: 0 }).x);
         return `${arrow(fx, fy, tip, fy, 'force', '')}<g class="vec vec-force"><text class="vec-label" x="${r1(lx)}" y="${r1(fy - 9)}">F${sub('sabuk')} = ${f(beltF)} N</text></g>`;
       })() : ''}
-      ${arrow(cg.x, cg.y, cg.x, cg.y + WEIGHT_PX, 'force', `F${sub('g')}`)}
-      ${arrow(cg.x, cg.y, cg.x, cg.y - WEIGHT_PX, 'force', 'N')}
+      ${s.dashForce > 0 ? arrow(fx, fy, fx - 60, fy, 'force', `F${sub('dasbor')}`, { labelSide: 'left' }) : ''}
+      ${arrow(cg.x, cg.y, cg.x, cg.y + WEIGHT_PX, 'force', `F${sub('g')} = ${f(p.mass * 10)} N`)}
+      ${arrow(cg.x, cg.y, cg.x, cg.y - WEIGHT_PX, 'force', `N = ${f(p.mass * 10)} N`)}
       <circle class="vec-dot" cx="${r1(cg.x)}" cy="${r1(cg.y)}" r="3"/>
     </g>
     <g class="layer layer-motion">

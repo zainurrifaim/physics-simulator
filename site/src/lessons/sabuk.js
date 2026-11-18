@@ -27,7 +27,7 @@ export default {
     correct: 1,
     key: 'speed',
     B: { speed: 72 },
-    tag: (p, f) => `${f(p.speed)} km/jam`,
+    tag: (p, f) => `${f(p.speed)} km/jam (${f(p.speed / 3.6, 1)} m/s)`,
     detail: (p, r, f) => (r.fails ? `butuh ${f(r.force, 0)} N ≥ ${f(p.limit)} N ✗ robek · dummy membentur dasbor (kecepatan relatif ${f(r.impactSpeed, 1)} m/s)` : `butuh ${f(r.force, 0)} N < ${f(p.limit)} N ✓ aman`),
     equation: (A, rA, B, rB, f) =>
       `F<sub>butuh</sub>: <span class="a">${f(rA.force, 0)} N</span> × ${f(rB.force / rA.force, 2)} = <span class="b">${f(rB.force, 0)} N</span>`,

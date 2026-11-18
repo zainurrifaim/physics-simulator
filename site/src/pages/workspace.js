@@ -148,7 +148,7 @@ export function renderWorkspace(main, lesson) {
     if (!unlocked()) return;
     // Preset prose contains fixed ratios. Custom setups use independent, exact results.
     const a = comparisonValue(lesson.id, st.rA), b = comparisonValue(lesson.id, st.rB);
-    $('#equation').innerHTML = original() ? cmp.equation(st.A, st.rA, st.B, st.rB, fmt) : `<span class="a">A: ${fmt(a.value)} ${a.unit}</span><span class="b">B: ${fmt(b.value)} ${b.unit}</span>`;
+    $('#equation').innerHTML = original() ? cmp.equation(st.A, st.rA, st.B, st.rB, fmt) : `<span class="a">A: ${a.label ? `${a.label} ` : ''}${fmt(a.value)} ${a.unit}</span><span class="b">B: ${b.label ? `${b.label} ` : ''}${fmt(b.value)} ${b.unit}</span>`;
     $('#eq-caption').innerHTML = original() ? cmp.caption(st.A, st.rA, st.B, st.rB, fmt) : `Setup pilihanmu · ${lesson.formula}`;
     $('#verdict').textContent = original() ? `${draft.prediction === undefined ? '' : draft.prediction === cmp.correct ? 'Prediksimu tepat. ' : 'Bandingkan dengan prediksimu. '}${cmp.verdict(st.A, st.rA, st.B, st.rB, fmt)}` : `A: ${cmp.detail(st.A, st.rA, fmt)}. B: ${cmp.detail(st.B, st.rB, fmt)}. Prediksi di awal berlaku untuk soal awal.`;
     $('.analysis-select').value = st.analysis;

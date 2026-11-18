@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { lessons } from '../site/src/lessons/index.js';
 import { fmt } from '../site/src/format.js';
 import {
-  render, geometry, insetGeometry, handle, camera, loadOffset,
+  render, geometry, insetGeometry, handle, camera, loadOffset, GAUGES, CLOSE, BUFFER_GAP,
   PX_PER_M, GROUND, CABIN_H, CABIN_W, INSET, INSET_SCALE, BLOCK, BLOCK_KG,
 } from '../site/src/scenes/lift.js';
 import { BODY } from '../site/src/scenes/rig.js';
@@ -31,6 +31,8 @@ test('lift scene: cabin at true scale, floor at the model height, inside the sha
       near(g.cabin.floorY, GROUND - s.position * PX_PER_M, 1e-9, `${name} t=${s.t}: cabin floor`);
       near(g.cabin.y + g.cabin.h, g.cabin.floorY, 1e-9, `${name}: floor is the cabin's bottom edge`);
       inside(g.cabin, g.shaft, `${name} t=${s.t}: cabin outside the shaft`);
+      assert.ok(g.floors.bufferTop - g.floors.bottom >= BUFFER_GAP * PX_PER_M - 1e-9, `${name}: buffers start below the landing`);
+      if (s.phase !== 'buffer') assert.ok(g.cabin.floorY < g.floors.bufferTop, `${name}: cabin sits on the buffer`);
       assert.ok(g.cable.length >= 0, `${name} t=${s.t}: cable length ${g.cable.length}`);
       near(g.cable.y2, g.cabin.y, 1e-9, `${name}: cable attached to the cabin roof`);
       near(g.cable.x, g.cabin.x + g.cabin.w / 2, 1e-9, `${name}: cable at the cabin centre`);
@@ -53,9 +55,15 @@ test('lift scene: overload looks like failure (brake, tag, red readouts); succes
       assert.doesNotMatch(svg, /brake-jaw on|Rem darurat/, `${name}: brakes on a successful run`);
     } else {
       assert.match(svg, /brake-jaw on/, `${name}: safety brake not clamped`);
-      assert.match(svg, new RegExp(`Rem darurat aktif · berhenti di ${fmt(r.stopHeight, 2).replace('.', '\\.')} m`), `${name}: stop tag`);
+      assert.match(svg, /Rem darurat aktif/, `${name}: stop tag`);
+      assert.ok(svg.includes(`berhenti di ${fmt(r.stopHeight, 2)} m`), `${name}: stop height`);
       assert.match(svg, /lift-gauge warn/, `${name}: readout not flagged`);
+      assert.match(svg, /perlu /, `${name}: needed power shown once running`);
+      if (r.maxPayload < 0) assert.ok(svg.includes(`tag warn"><rect`) && /class="tag warn">[^]*?>m<tspan class="sub" dy="4">lift/.test(svg), `${name}: cabin alone over the limit but m_lift not flagged`);
     }
+    // t = 0 is the prediction preview: identical neutral visuals for success and overload
+    const first = render(p, r, states[0], fmt);
+    assert.doesNotMatch(first, /class="cabin fail|lift-gauge warn|perlu |tag warn|lift-status warn|brake-jaw on|missed/, `${name}: preview at t = 0 gives the answer away`);
     for (const s of states) {
       const out = render(p, r, s, fmt);
       assert.doesNotMatch(out, /NaN|undefined|Infinity/, `${name} t=${s.t}`);
@@ -107,6 +115,10 @@ test('lift scene: drag handles sit on the drawn landings; cameras and the ± pan
       const moved = { ...panel, x: panel.x + dx, y: panel.y + dy };
       inside(moved, cam, `${mode}: ± panel outside the view`);
       inside(INSET, cam, `${mode}: callout outside the view`);
+      const G0 = GAUGES[mode];
+      const gaugeBox = { x: G0.x, y: G0.y - 18, w: G0.w, h: G0.dy + 52 };
+      inside(gaugeBox, cam, `${mode}: gauges outside the view`);
+      assert.ok(!overlap(moved, gaugeBox), `${mode}: ± panel covers the gauges`);
       assert.ok(!overlap(moved, INSET), `${mode}: ± panel covers the callout`);
       for (const s of states) {
         const gs = geometry(p, r, s);
@@ -119,6 +131,15 @@ test('lift scene: drag handles sit on the drawn landings; cameras and the ± pan
         assert.ok(!overlap({ x: h.x - 15, y: h.y - 15, w: 30, h: 30 }, moved), `${name} ${mode}: ± panel covers the ${key} marker`);
       }
     }
-    assert.ok(Math.abs(handle('top', p).x - handle('bottom', p).x) >= 30, 'handles never sit on top of each other');
+    // the two handle circles (r = 15) and their labels (right-anchored, ~60 px wide, 14–30 px above) never collide
+    const T = handle('top', p), Bh = handle('bottom', p);
+    assert.ok(Math.hypot(T.x - Bh.x, T.y - Bh.y) >= 32, `${name}: handle circles touch`);
+    const label = (h) => ({ x: h.x - 84, y: h.y - 31, w: 62, h: 17 });
+    assert.ok(!overlap(label(T), label(Bh)), `${name}: handle labels overlap`);
+    for (const [h, o] of [[T, Bh], [Bh, T]]) {
+      assert.ok(label(h).x >= g.shaft.x + g.shaft.w, `${name}: handle label covers the shaft`);
+      assert.ok(!overlap(label(h), { x: o.x - 15, y: o.y - 15, w: 30, h: 30 }), `${name}: label covers the other handle`);
+    }
+    if (p.top - p.bottom >= CLOSE) assert.equal(T.x, Bh.x);
   }
 });

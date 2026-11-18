@@ -68,7 +68,7 @@ export function render(p, r, s, f) {
     ${handsFront}
     <g class="layer layer-labels">
       <path class="target-line" d="M190 ${targetY}H500"/>
-      ${dimV(520, targetY, barPixelY(0), `h = ${f(p.height)} m`)}
+      ${dimV(520, targetY, barPixelY(0), "")}
       ${tag(CX, FLOOR + 22, `m = ${f(p.mass)} kg`)}
       ${tag(CX, 100, `E tersedia = ${f(p.energy)} J`, 'accent')}
       ${status}

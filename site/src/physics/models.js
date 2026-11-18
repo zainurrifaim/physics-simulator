@@ -145,14 +145,16 @@ export function solveDerek({ mass, height, time, power, capacity = Infinity }) {
 function sampleDerek(p, r, t) {
   const position = Math.min(r.reached, r.speed * t);
   const done = t >= r.duration;
-  const phase = r.overload ? 'stall' : done ? (r.ok ? 'arrived' : 'timeout') : 'lift';
+  // t = 0: switched on but not yet moving (so a paused/preview frame shows no power used)
+  const idle = t <= 0;
+  const phase = r.overload ? 'stall' : idle ? 'ready' : done ? (r.ok ? 'arrived' : 'timeout') : 'lift';
   return {
     phase,
     position,
-    speed: done || r.overload ? 0 : r.speed,
+    speed: done || idle || r.overload ? 0 : r.speed,
     potential: r.weight * position,
     kinetic: 0,
-    power: done || r.overload ? 0 : r.hoistPower,
+    power: done || idle || r.overload ? 0 : r.hoistPower,
     tension: r.overload ? r.maxForce : r.weight,
   };
 }
@@ -312,6 +314,7 @@ export function solveSabuk({ speed, distance, mass, limit, carMass }) {
     carStop,
     hitTime,
     impactSpeed,
+    impulse: mass * impactSpeed,               // Δp of the dummy in the dashboard collision (N·s)
     duration: end * (fails ? 1.25 : 1),
     answer: { value: force, unit: 'N' },
   };
@@ -325,7 +328,7 @@ function sampleSabuk(p, r, t) {
   if (!r.fails) {
     return {
       phase: t <= 0 ? 'ready' : t >= r.carStop ? 'stopped' : 'braking', position, speed: carSpeed,
-      dummySpeed: carSpeed, dummyOffset: 0, beltIntact: true, beltForce: t > 0 && t < r.carStop ? r.force : 0,
+      dummySpeed: carSpeed, dummyOffset: 0, beltIntact: true, beltForce: t > 0 && t < r.carStop ? r.force : 0, dashForce: 0,
       kinetic: 0.5 * p.mass * carSpeed ** 2, potential: 0,
     };
   }
@@ -337,7 +340,8 @@ function sampleSabuk(p, r, t) {
   else { dummyOffset = DASH_GAP; dummySpeed = carSpeed; }
   return {
     phase: t <= 0 ? 'ready' : free ? 'torn' : 'impact', position, speed: carSpeed,
-    dummySpeed, dummyOffset, beltIntact: t <= 0, beltForce: 0,
+    // after the collision the dashboard pushes the dummy along with the still-braking car
+    dummySpeed, dummyOffset, beltIntact: t <= 0, beltForce: 0, dashForce: !free && t < r.carStop ? p.mass * Math.abs(a) : 0,
     kinetic: 0.5 * p.mass * dummySpeed ** 2, potential: 0,
   };
 }

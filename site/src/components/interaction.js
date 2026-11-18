@@ -27,8 +27,8 @@ export function isOriginalComparison(lesson, a, b) {
 
 /** Quantities actually compared in the experiment, distinct from worksheet answers. */
 export function comparisonValue(id, result) {
-  const [key, unit] = { angkat: ['work', 'J'], derek: ['required', 'W'], lift: ['absorbed', 'W'], sabuk: ['force', 'N'], sepeda: ['duration', 's'] }[id];
-  return { value: result[key], unit };
+  const [key, unit, label] = { angkat: ['work', 'J', 'E butuh'], derek: ['required', 'W', 'P butuh'], lift: ['absorbed', 'W', 'P rem'], sabuk: ['force', 'N', 'F butuh'], sepeda: ['duration', 's', 't'] }[id];
+  return { value: result[key], unit, label };
 }
 
 /** Viewport of a module scene (600 × 380 coordinates); each scene owns its camera. */
@@ -132,7 +132,8 @@ export function mountInteraction(host, lesson, caseName, getParams, edit) {
       if (lesson.id === 'sabuk') {
         const speed = handleGeometry(lesson.id, 'speed', p), distance = handleGeometry(lesson.id, 'distance', p);
         svg.querySelector('.setup-speed').setAttribute('d', `M170 70H${speed.x}m-10 -6l10 6l-10 6`);
-        svg.querySelector('.setup-distance').setAttribute('d', `M200 151v18m0 -9H${distance.x}m0 -9v18`);
+        // true-scale ruler from the wall face (x 545) to the handle: exactly the crumple distance s
+        svg.querySelector('.setup-distance').setAttribute('d', `M545 ${distance.y - 9}v18m0 -9H${distance.x}m0 -9v18`);
       }
       if (config.load) {
         svg.querySelector('.load-value').textContent = `${fmt(p[config.load])} kg`;

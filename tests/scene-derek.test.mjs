@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { lessons } from '../site/src/lessons/index.js';
 import { fmt } from '../site/src/format.js';
 import {
-  render, geometry, handle, camera, loadOffset, crateSize, crateBottomY,
+  render, geometry, handle, camera, loadOffset, crateSize, crateBottomY, powerPair, reachedText,
   GROUND, PX_PER_M, TROLLEY_Y, JIB_BOTTOM, HOOK_X, DIM_X,
 } from '../site/src/scenes/derek.js';
 import { parameterSets, frames } from './helpers.mjs';
@@ -20,6 +20,8 @@ const sets = [
   ['stall light', { ...lesson.preset, mass: 800, capacity: 500 }],
   ['stall max height', { ...lesson.preset, mass: 10000, capacity: 500, height: 30 }],
   ['container to 30 m', { ...lesson.preset, mass: 10000, height: 30, time: 120, power: 50000 }],
+  ['just short', { ...lesson.preset, height: 2, time: 13, power: 1500, mass: 1000 }],
+  ['barely moves', { ...lesson.preset, mass: 10000, power: 500, time: 5 }],
 ];
 const PANEL = { x1: 174, x2: 426, y1: 308, y2: 380 };   // ± load panel (interaction.js)
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -47,9 +49,19 @@ test('derek scene: crate, hook and cable stay physically possible in every frame
         assert.equal(g.crate.bottom, GROUND, `${at}: overloaded crate left the ground`);
         assert.match(svg, /Melebihi kapasitas/, at);
       }
-      if (s.phase === 'lift') assert.doesNotMatch(svg, /habis|Sampai|Melebihi/, `${at}: verdict shown before the end`);
+      if (s.phase === 'lift' || s.phase === 'ready') assert.doesNotMatch(svg, /habis|Sampai|Melebihi|dk-strain|dk-gap/, `${at}: verdict shown before the end`);
+      // at t = 0 nothing moves: gauge empty, no power-limit colouring (a paused preview gives nothing away)
+      if (s.phase === 'ready') assert.doesNotMatch(svg, /dk-fill/, `${at}: gauge not neutral at t = 0`);
+      // the displacement arrow s spans exactly ground → current crate bottom (none while unmoved)
+      const sArrow = svg.match(/<g class="vec vec-disp">\s*<path class="vec-line[^"]*" pathLength="1" d="M[\d.]+ ([\d.]+)L/);
+      if (s.position > 0 && g.crate.bottom < GROUND - 2) assert.ok(sArrow && Number(sArrow[1]) === GROUND, `${at}: s arrow missing`);
+      if (s.position === 0) assert.ok(!sArrow, `${at}: s arrow drawn for an unmoved crate`);
+      if (sArrow) assert.ok(svg.includes(`<path class="vec-head" d="M${HOOK_X - 32} ${r1(g.crate.bottom)}L`), `${at}: s arrow does not end at the crate`);
       if (s.phase === 'arrived') assert.match(svg, /Sampai/, at);
-      if (s.phase === 'timeout') assert.match(svg, /habis/, at);
+      if (s.phase === 'timeout') {
+        assert.match(svg, /habis/, at);
+        assert.ok(!svg.includes(`baru ${fmt(p.height)} m`), `${at}: failed run printed as reaching h`);
+      }
     }
     const end = states.at(-1);
     const g = geometry(p, r, end);
@@ -65,9 +77,13 @@ test('derek scene: crate, hook and cable stay physically possible in every frame
 test('derek scene: crate size grows with mass within plausible bounds', () => {
   for (let m = 50; m <= 10000; m += 50) {
     const size = crateSize(m);
-    assert.ok(size.w >= 0.8 && size.w <= 6.1 && size.h >= 0.8 && size.h <= 2.6, `${m} kg: ${size.w} × ${size.h} m`);
+    assert.ok(size.w >= 0.5 && size.w <= 6.1 && size.h >= 0.5 && size.h <= 2.6, `${m} kg: ${size.w} × ${size.h} m`);
     if (m <= 300) assert.ok(size.w <= 1.2, `${m} kg crate too large`);
   }
+  // ± visibly changes the crate: 50 kg and 800 kg are drawn at different sizes
+  const px = (m) => geometry({ ...lesson.preset, mass: m }, { reached: 0 }, { position: 0 }).crate.w;
+  assert.ok(px(800) - px(50) > 5, `50 kg vs 800 kg: ${px(50)} vs ${px(800)} px`);
+  for (let m = 100; m <= 10000; m += 50) assert.ok(px(m) >= px(m - 50) - 1e-9, `size shrinks at ${m} kg`);
 });
 
 test('derek scene: drag handle sits on the drawn target line; panel never hides the crate', () => {
@@ -95,4 +111,19 @@ test('derek scene: drag handle sits on the drawn target line; panel never hides 
       }
     }
   }
+});
+
+test('derek scene: readouts never print a failed run as a success', () => {
+  // power: unequal values never print the same text
+  for (const [used, rated] of [[1450, 1500], [19999, 20000], [9999.6, 10000], [600, 20000], [49999.99, 50000]]) {
+    const [a, b] = powerPair(used, rated, fmt);
+    assert.notEqual(a, b, `${used} / ${rated}`);
+  }
+  const [a, b] = powerPair(20000 * (1 + 1e-15), 20000, fmt);
+  assert.equal(a, b);
+  // reached height: 3 significant figures, never equal to h when short
+  assert.equal(reachedText(1.95, 2, fmt), '1,95');
+  assert.equal(reachedText(0.025, 15, fmt), '0,025');
+  assert.equal(reachedText(14.9996, 15, fmt), '&lt; 15');
+  assert.equal(reachedText(10, 15, fmt), '10');
 });

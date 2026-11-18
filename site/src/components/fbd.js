@@ -38,7 +38,9 @@ export function forceDiagram(lesson, cases, { stacked = false } = {}) {
       .map((f) => {
         // true proportions (no minimum length), so arrows can be compared directly
         const len = Math.max(2, (f.value / max) * MAXLEN);
-        return arrow(cx, cy, cx + f.dx * len, cy + f.dy * len, c.cls, f.label, f.value);
+        // optional ox/oy: start offset in px (e.g. a ground reaction at the bottom face)
+        const x0 = cx + (f.ox ?? 0), y0 = cy + (f.oy ?? 0);
+        return arrow(x0, y0, x0 + f.dx * len, y0 + f.dy * len, c.cls, f.label, f.value);
       })
       .join('');
     return `<g transform="translate(0 ${stacked ? k * VH : 0})"><rect class="fbody" x="${cx - 9}" y="${cy - 9}" width="18" height="18" rx="3"/>${arrows}

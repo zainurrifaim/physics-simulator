@@ -43,15 +43,19 @@ Untuk server sekolah, cukup salin isi folder `site/` ke server web statis mana p
 site/
   index.html
   styles/            base, layout, scene, poster, workspace, print
+    scenes/*.css     gaya khusus tiap ilustrasi modul
   src/
     app.js           router (hash) + kerangka halaman
-    physics/models.js  model fisika murni (SI, g = 10 m/s²)
+    physics/models.js  model fisika murni (SI, g = 10 m/s²) + garis waktu tiap hasil
     lessons/*.js     teks, preset soal asli, langkah cerita, rubrik per modul
-    scenes/*.js      ilustrasi SVG per modul + helper gambar
+    lessons/live.js  angka langsung di bawah gambar (dari keadaan yang sama dengan gambar)
+    scenes/*.js      ilustrasi SVG per modul: render, kamera, penanda seret, geometri untuk tes
+    scenes/rig.js    tubuh manusia dengan panjang anggota tetap (IK dua ruas, 2D dan 3D)
     components/      interaction (pointer/keyboard/validasi), chart, fbd, worksheet, sketch, fx, icons
     pages/           home, workspace, concepts, notes
     state/storage.js penyimpanan lokal berversi
-tests/               physics.test.mjs, interaction.test.mjs
+  dev/frames.html    alat pengembang: semua modul × setup × waktu dalam satu halaman
+tests/               fisika, interaksi, invarian per bingkai, dan tes geometri tiap ilustrasi
 materials/           dokumen soal dan kunci jawaban asli (tidak diubah)
 ```
 
@@ -61,8 +65,37 @@ materials/           dokumen soal dan kunci jawaban asli (tidak diubah)
 npm test        # atau: node --test tests/*.test.mjs
 ```
 
-Tes memeriksa kelima hasil soal asli, nilai ambang, konversi satuan, input tidak valid, kekekalan energi, pemetaan gerakan penanda, pembatasan parameter, perubahan hasil per modul, dan batas grafik A/B yang berbeda.
+Selain hasil soal asli, nilai ambang, dan validasi input, tes memeriksa **setiap bingkai** animasi
+(setup A, B, tiap parameter di batas minimum/maksimum, dan setup acak) terhadap aturan fisika
+yang tidak boleh dilanggar gambar:
+
+- panjang lengan dan tungkai tetap; tangan tetap memegang barbel; kaki tetap di lantai; gerak sendi kontinu;
+- hasil "tidak bisa" tidak pernah tampak berhasil (barbel jatuh, peti berhenti saat waktu habis atau tidak terangkat, lift direm darurat, dummy membentur dasbor);
+- energi selalu seimbang (Ep + Ek + energi yang diserap rem = tetap);
+- ukuran di gambar sesuai skala sebenarnya (atau diberi keterangan "diperbesar");
+- setup yang tepat di batas tidak berubah putusan karena pembulatan angka.
+
+### Melihat bingkai animasi
+
+```
+node tests/screenshot.mjs keluaran.png "id=angkat&sets=A,B,height=max&cols=6" 2000 1200
+node tests/screenshot.mjs keluaran.png "/#sim/lift" 1400 850      # halaman aplikasi sebenarnya
+```
+
+`sets` menerima `A`, `B`, `<kunci>=min|max`, atau setup bebas seperti `B.capacity=5000;time=40`.
+Di Git Bash, awali perintah halaman aplikasi dengan `MSYS_NO_PATHCONV=1`.
 
 ## Catatan model
 
-Semua simulasi memakai model ideal yang asumsinya ditampilkan di setiap modul. Soal lift memerlukan tambahan asumsi (daya = laju maksimum mesin menyerap energi saat turun dengan kecepatan tetap); lihat `PLAN.md`.
+Semua simulasi memakai model ideal yang asumsinya ditampilkan di setiap modul. Setiap hasil
+"tidak bisa" punya kelanjutan fisis yang ditampilkan, bukan hanya tulisan:
+
+| Modul | Bila gagal |
+|---|---|
+| Angkat besi | barbel berhenti saat energi habis (h = E / mg), dilepas, lalu jatuh bebas |
+| Derek | daya membatasi kecepatan (v = P / mg); waktu habis sebelum sampai. Kapasitas angkat (tambahan model, tidak ada di soal) membuat beban berlebih tidak terangkat |
+| Lift | rem hanya mampu P / v, kabin makin cepat, pembatas kecepatan memicu rem darurat pada 115% |
+| Sabuk | sabuk robek seketika, dummy terus bergerak dengan v₀ sampai membentur dasbor 0,45 m di depannya |
+| Sepeda | (selalu sampai) massa tidak mengubah waktu; kemiringan dibatasi sin θ ≤ 0,7 |
+
+Soal lift memerlukan tambahan asumsi (daya = laju maksimum mesin menyerap energi saat turun dengan kecepatan tetap); lihat `PLAN.md`.

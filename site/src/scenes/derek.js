@@ -1,12 +1,14 @@
 // Tower crane lifting a crate, drawn to one true scale (7,5 px = 1 m).
 // Everything that moves comes from the sampled state: the crate height is s.position, the
 // gauge shows s.power / s.speed / s.t, and the outcome tags come from s.phase only:
+//   'ready'   t = 0, hoist switched on but not moving: neutral, no verdict
 //   'lift'    crate rises at the model speed (P / mg when power is the limit)
 //   'arrived' crate at the target when the requested time ends
 //   'timeout' time window over; crate stays at r.reached below the target (red gap band)
 //   'stall'   load above the rated capacity; crate stays on the ground, cable taut
 // Geometry helpers are exported so tests check exactly what is drawn.
 import { arrow, tag, plant, svg, sub } from './draw.js';
+import { sig } from '../format.js';
 
 export const GROUND = 345;
 export const PX_PER_M = 7.5;
@@ -16,12 +18,13 @@ export const JIB_BOTTOM = 36;
 /** Underside of the trolley, where the hoist cable leaves it. */
 export const TROLLEY_Y = 45;
 export const DIM_X = 140;           // height dimension line and drag handle (left, clear of the ± panel)
-export const MIN_CRATE_PX = 12;     // modest minimum so a ~1 m box (7,5 px) stays visible
+export const MIN_CRATE_PX = 5;      // only the very smallest boxes (< 0,67 m) are drawn a little larger
 const BLOCK_W = 9;
 const BLOCK_H = 9;
 const HOOK_H = 6;
 const FORCE_X = HOOK_X + 38;        // force vectors right of the widest crate
-const GAUGE = { x: 206, y: 48, w: 150, h: 58 };
+const GAUGE = { x: 232, y: 48, w: 156, h: 58 };   // clear of the handle label at h = 30 m (x ≤ ~225)
+const STATUS_RIGHT = HOOK_X - 40;  // right edge of status tags, clear of the s arrow (x = HOOK_X − 32)
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -35,7 +38,7 @@ export const crateBottomY = (position) => GROUND - position * PX_PER_M;
  */
 export function crateSize(mass) {
   if (mass < 2000) {
-    const side = clamp(Math.cbrt(mass / 200), 0.8, 2);
+    const side = clamp(Math.cbrt(mass / 200), 0.5, 2);
     return { kind: 'crate', w: side, h: side };
   }
   const length = 3 + (clamp(mass, 2000, 10000) - 2000) / 8000 * 3.1;   // up to a 20-ft box
@@ -68,15 +71,25 @@ export function geometry(p, r, s) {
 
 /** Compact force text: N below 1 kN, kN above (keeps labels inside the frame). */
 const forceText = (v, f) => (v >= 1000 ? `${f(v / 1000, 1)} kN` : `${f(v)} N`);
-const powerText = (v, f) => (v >= 1000 ? `${f(v / 1000, 1)} kW` : `${f(v)} W`);
+/** "used / rated" power: W below 10 kW, kW above; adds digits until unequal values print differently. */
+export function powerPair(used, rated, f) {
+  const same = Math.abs(used - rated) <= 1e-9 * rated;
+  const text = (v, d) => (v >= 10000 ? `${f(v / 1000, d)} kW` : `${f(v, d - 1)} W`);
+  for (let d = 1; d <= 6; d++) {
+    const a = text(same ? rated : used, d), b = text(rated, d);
+    if (same || a !== b) return [a, b];
+  }
+  return [text(used, 6), text(rated, 6)];
+}
+/** Height reached in a failed run: 3 significant figures, never printed as the full target. */
+export const reachedText = (reached, height, f) => (sig(reached) >= height ? `&lt; ${f(height)}` : f(sig(reached), 6));
 const tagWidth = (text) => text.replace(/<[^>]+>/g, '').length * 7 + 16;
 /** Tag whose right edge sits at x (status messages stay left of the crate column). */
 const tagRight = (xRight, y, text, cls) => tag(xRight - tagWidth(text) / 2, y, text, cls);
 
-/** Vertical dimension with the label on the right, clamped above the ± panel. */
-function dim(x, yTop, yBottom, label) {
-  const ty = Math.min((yTop + yBottom) / 2 + 4, 300);
-  return `<g class="dim"><path d="M${x} ${r1(yTop)}V${r1(yBottom)}M${x - 6} ${r1(yTop)}H${x + 6}M${x - 6} ${r1(yBottom)}H${x + 6}"/><text x="${x + 8}" y="${r1(ty)}">${label}</text></g>`;
+/** Vertical dimension line only: the drag handle's label already prints h. */
+function dim(x, yTop, yBottom) {
+  return `<g class="dim"><path d="M${x} ${r1(yTop)}V${r1(yBottom)}M${x - 6} ${r1(yTop)}H${x + 6}M${x - 6} ${r1(yBottom)}H${x + 6}"/></g>`;
 }
 
 function crane() {
@@ -119,13 +132,14 @@ function gauge(p, r, s, f) {
   const tf = clamp(s.t / p.time, 0, 1);
   const limited = s.phase === 'lift' && !r.powerOk;
   const tDigits = p.time < 20 ? 1 : 0;
+  const [used, rated] = powerPair(s.power, p.power, f);
   return `<g class="dk-gauge">
     <rect class="dk-panel" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>
     <text class="dk-g-title" x="${x + 8}" y="${y + 14}">Daya</text>
-    <text class="dk-g-value" x="${x + w - 8}" y="${y + 14}" text-anchor="end">${powerText(s.power, f)} / ${powerText(p.power, f)}</text>
+    <text class="dk-g-value" x="${x + w - 8}" y="${y + 14}" text-anchor="end">${used} / ${rated}</text>
     <rect class="dk-track" x="${x + 8}" y="${y + 19}" width="${inner}" height="7" rx="3.5"/>
     ${pf > 0 ? `<rect class="dk-fill${limited ? ' maxed' : ''}" x="${x + 8}" y="${y + 19}" width="${r1(Math.max(3, inner * pf))}" height="7" rx="3.5"/>` : ''}
-    <text class="dk-g-value" x="${x + 8}" y="${y + 40}">v = ${f(s.speed, 2)} m/s</text>
+    <text class="dk-g-value" x="${x + 8}" y="${y + 40}">v = ${f(sig(s.speed), 6)} m/s</text>
     <text class="dk-g-value" x="${x + w - 8}" y="${y + 40}" text-anchor="end">t = ${f(s.t, tDigits)} / ${f(p.time)} s</text>
     <rect class="dk-track thin" x="${x + 8}" y="${y + 46}" width="${inner}" height="4" rx="2"/>
     ${tf > 0 ? `<rect class="dk-fill time" x="${x + 8}" y="${y + 46}" width="${r1(Math.max(2, inner * tf))}" height="4" rx="2"/>` : ''}
@@ -136,7 +150,7 @@ export function render(p, r, s, f) {
   const g = geometry(p, r, s);
   const { crate, targetY } = g;
   const cy = crate.y + crate.h / 2;
-  const right = HOOK_X - 34;                                   // right edge for status tags
+  const right = STATUS_RIGHT;
   const statusY = clamp(targetY - 18, 124, 270);
 
   let status = '';
@@ -144,7 +158,7 @@ export function render(p, r, s, f) {
   if (s.phase === 'timeout') {
     gap = `<rect class="dk-gap" x="${HOOK_X - 30}" y="${r1(targetY)}" width="60" height="${r1(g.reachedY - targetY)}"/>
       <path class="dk-reached" d="M${HOOK_X - 34} ${r1(g.reachedY)}H${HOOK_X + 34}"/>`;
-    status = tagRight(right, statusY, `${f(p.time)} s habis · baru ${f(r.reached, 1)} m`, 'warn');
+    status = tagRight(right, statusY, `${f(p.time)} s habis · baru ${reachedText(r.reached, p.height, f)} m`, 'warn');
   } else if (s.phase === 'stall') {
     status = tagRight(right, 248, 'Melebihi kapasitas', 'warn') + tagRight(right, 274, `${f(p.mass)} kg &gt; ${f(p.capacity)} kg`);
   } else if (s.phase === 'arrived') {
@@ -152,14 +166,19 @@ export function render(p, r, s, f) {
   }
 
   // Free-body vectors on the crate. Lengths share one reference (the weight) so T + N = Fg is visible.
+  // Labels are placed separately so a tiny T (e.g. 5 kN of 100 kN) still has a readable label.
   const len = Math.max(22, Math.min(56, 376 - cy));
-  const tLen = len * (s.tension / r.weight);
-  const nLen = len - tLen;
+  const tLen = Math.max(4, len * (s.tension / r.weight));
+  const nForce = r.weight - s.tension;
+  const nLen = nForce > 0 ? Math.max(4, len - tLen) : 0;
+  const tY = cy - tLen / 2 + 4;
+  const nY = Math.min(cy - tLen - nLen / 2 + 4, tY - 15);
+  const label = (y, text) => `<g class="vec vec-force"><text class="vec-label" x="${FORCE_X + 10}" y="${r1(y)}">${text}</text></g>`;
   const forces = `
       <circle class="vec-dot" cx="${FORCE_X}" cy="${r1(cy)}" r="4"/>
-      ${arrow(FORCE_X, cy, FORCE_X, cy - tLen, 'force', `T = ${forceText(s.tension, f)}`)}
-      ${nLen > 2 ? arrow(FORCE_X, cy - tLen, FORCE_X, cy - len, 'force', `N = ${forceText(r.weight - s.tension, f)}`) : ''}
-      ${arrow(FORCE_X, cy, FORCE_X, cy + len, 'force', `F${sub('g')} = ${forceText(r.weight, f)}`)}`;
+      ${arrow(FORCE_X, cy, FORCE_X, cy - tLen, 'force', '')}${label(tY, `T = ${forceText(s.tension, f)}`)}
+      ${nLen > 0 ? arrow(FORCE_X, cy - tLen, FORCE_X, cy - tLen - nLen, 'force', '') + label(nY, `N = ${forceText(nForce, f)}`) : ''}
+      ${arrow(FORCE_X, cy, FORCE_X, cy + len, 'force', '')}${label(cy + len / 2 + 4, `F${sub('g')} = ${forceText(r.weight, f)}`)}`;
 
   return svg(
     `
@@ -167,7 +186,7 @@ export function render(p, r, s, f) {
     <g class="city"><rect x="170" y="190" width="46" height="155"/><rect x="226" y="150" width="34" height="195"/><rect x="530" y="250" width="60" height="95"/><rect x="290" y="250" width="40" height="95"/></g>
     <rect class="ground" x="0" y="${GROUND}" width="600" height="35"/>
     ${crane()}
-    <g class="dk-worker" transform="translate(80 ${GROUND})"><path d="M-2 0L0 -6L2 0M0 -6V-10.5M-2.5 -9L2.5 -9"/><circle cx="0" cy="-11.6" r="1.4"/></g>
+    <g class="dk-worker" transform="translate(160 ${GROUND})"><path d="M-2 0L0 -6L2 0M0 -6V-10.5M-2.5 -9L2.5 -9"/><circle cx="0" cy="-11.6" r="1.4"/></g>
     ${plant(30, GROUND - 22, 0.9)}
     ${gap}
     <path class="target-line" d="M${DIM_X - 8} ${r1(targetY)}H${HOOK_X + 46}"/>
@@ -175,19 +194,19 @@ export function render(p, r, s, f) {
     ${gauge(p, r, s, f)}
     ${status}
     <g class="layer layer-labels">
-      ${dim(DIM_X, targetY, GROUND, `h = ${f(p.height)} m`)}
+      ${dim(DIM_X, targetY, GROUND)}
     </g>
     <g class="layer layer-forces">${forces}
     </g>
     <g class="layer layer-motion">
-      ${arrow(HOOK_X - 32, GROUND, HOOK_X - 32, targetY, 'disp', 's', { dashed: true, labelSide: 'left' })}
+      ${s.position > 0 ? arrow(HOOK_X - 32, GROUND, HOOK_X - 32, crateBottomY(s.position), 'disp', 's', { labelSide: 'left' }) : ''}
     </g>
   `,
     `Derek mengangkat kotak ${f(p.mass)} kilogram setinggi ${f(p.height)} meter`
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '120 0 480 380' };
+export const camera = { desktop: '0 0 600 380', portrait: '96 0 504 380' };
 
 /** The ± load panel stays at the bottom centre: the crate column (x ≥ 446) and the height handle (x = 140) are outside it. */
 export const loadOffset = { desktop: [0, 0], portrait: [0, 0] };

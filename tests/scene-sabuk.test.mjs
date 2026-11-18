@@ -100,7 +100,7 @@ test('sabuk scene: render is pure, has no NaN and shows forces/verdicts only whe
     assert.equal(a.includes('Membentur dasbor'), s.phase === 'impact', `${name}: impact tag`);
     assert.equal(a.includes('belt broken'), !s.beltIntact, `${name}: torn belt drawing`);
     // no net vertical force on the seated dummy: weight and seat normal force are both drawn
-    assert.ok(a.includes('>N</text>') && a.includes('F<tspan class="sub" dy="4">g'), `${name}: N and F_g`);
+    assert.ok(/>N = [\d.]+ N</.test(a) && a.includes('F<tspan class="sub" dy="4">g'), `${name}: N and F_g`);
     if (s.phase === 'impact') assert.ok(a.includes('kecepatan relatif'), `${name}: impact speed is relative`);
   }
 });
@@ -126,6 +126,27 @@ test('sabuk scene: readout and status tags fit inside both cameras', () => {
   const right = (c) => { const [x, , w] = c.split(' ').map(Number); return x + w; };
   const edge = Math.min(right(camera.desktop), right(camera.portrait));
   assert.ok(READOUT.x + READOUT.w <= edge - 4, 'readout clipped');
-  const widest = ['Membentur dasbor · kecepatan relatif 33,3 m/s', 'Sabuk menahan · dummy aman'];
+  const widest = ['Membentur dasbor!', 'Sabuk menahan · dummy aman', 'SABUK ROBEK!'];
   for (const t of widest) { const w = t.length * 7 + 16; assert.ok(STATUS.x + w / 2 <= edge - 4 && STATUS.x - w / 2 >= 10, `status tag "${t}" clipped`); }
+});
+
+test('sabuk: the free-body diagram shows exactly the forces acting on the dummy', async () => {
+  const { fbdForces, FBD } = await import('../site/src/scenes/sabuk.js');
+  const { lessons } = await import('../site/src/lessons/index.js');
+  const { parameterSets, frames } = await import('./helpers.mjs');
+  const lesson = lessons.find((l) => l.id === 'sabuk');
+  for (const [name, p] of parameterSets(lesson)) {
+    const { r, states } = frames('sabuk', p, 160);
+    for (const s of states) {
+      const F = fbdForces(p, s);
+      const h = F.filter((x) => x.dx), N = F.find((x) => x.key === 'N'), g = F.find((x) => x.key === 'g');
+      assert.equal(N.value, g.value, `${name}: N balances F_g`);
+      assert.equal(g.value, p.mass * 10, `${name}: F_g = m g`);
+      if (s.phase === 'braking') assert.deepEqual(h.map((x) => [x.key, x.value]), [['sabuk', r.force]], `${name} t=${s.t}`);
+      else if (s.phase === 'torn' || s.phase === 'ready' || s.phase === 'stopped') assert.equal(h.length, 0, `${name} t=${s.t} ${s.phase}: no horizontal force`);
+      else if (s.phase === 'impact') assert.ok(h.every((x) => x.key === 'dasbor') && (s.t < r.carStop ? h.length === 1 : h.length === 0), `${name} t=${s.t}: dashboard force while the car still brakes`);
+      // one common scale: lengths ∝ force unless clamped
+      for (const x of h) if (x.scaled) assert.ok(Math.abs(x.len - Math.max(4, x.value * FBD.k)) < 1e-9, `${name}: scale`);
+    }
+  }
 });

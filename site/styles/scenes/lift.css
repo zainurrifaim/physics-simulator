@@ -4,7 +4,7 @@
 .scene-svg .landing { stroke: #6f6a85; stroke-width: 2.5; }
 .scene-svg .lift-machine { fill: #4c4862; }
 .scene-svg .level-text { font-size: 11px; font-weight: 700; fill: var(--text); paint-order: stroke; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px; }
-.scene-svg .level-text.missed { fill: var(--warn); }
+
 .scene-svg .cabin.fail > rect:first-child { fill: #a5705f; }
 .scene-svg .brake-mark { fill: var(--warn); }
 .scene-svg .impact { stroke: var(--warn); stroke-width: 2; stroke-linecap: round; fill: none; }
@@ -45,3 +45,11 @@
 .scene-svg .gauge-mark-text.limit, .scene-svg .gauge-mark-text.need { fill: var(--warn); font-weight: 600; }
 .scene-svg .gauge-ghost { fill: none; stroke: var(--warn); stroke-width: 1.4; stroke-dasharray: 3 2; }
 .scene-svg .pit-fill { fill: #b9b3cb; }
+.scene-svg .landing-line { stroke: #8b86a0; stroke-width: 1.2; stroke-dasharray: 5 3; }
+.scene-svg .missed { fill: var(--warn); }
+.scene-svg .lift-status rect { fill: rgba(255, 255, 255, 0.94); stroke: var(--line-strong); }
+.scene-svg .lift-status .status-main { font-size: 12px; font-weight: 700; fill: var(--text); }
+.scene-svg .lift-status .status-sub { font-size: 11px; fill: var(--text); }
+.scene-svg .lift-status.warn rect { fill: var(--warn); stroke: none; }
+.scene-svg .lift-status.ok rect { fill: var(--good); stroke: none; }
+.scene-svg .lift-status.warn text, .scene-svg .lift-status.ok text { fill: #fff; }

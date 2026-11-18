@@ -1,6 +1,9 @@
 // Indonesian number formatting (decimal comma, dot thousands separator).
 const formatters = new Map();
 
+/** Round to n significant figures (for small results such as 0,025 m or 0,005 m/s). */
+export const sig = (value, n = 3) => (Number.isFinite(value) && value !== 0 ? Number(value.toPrecision(n)) : value);
+
 export function fmt(value, maxDigits = 2) {
   if (!Number.isFinite(value)) return '–';
   let f = formatters.get(maxDigits);
