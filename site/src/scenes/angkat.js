@@ -117,7 +117,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '150 0 400 492', cleanDesktop: '150 76 400 304', cleanPortrait: '150 76 400 304' };
+export const camera = { desktop: '0 0 600 380', portrait: '150 0 400 492' };
 
 /** ± load panel sits at the top, away from the lifter and the barbell on the floor. */
 export const loadOffset = { desktop: [150, -292], portrait: [4, -292] };

@@ -16,21 +16,21 @@ export default {
     { key: 'top', label: 'Ketinggian awal', symbol: 'h<sub>1</sub>', unit: 'm', min: 10, max: 40, step: 1 },
     { key: 'bottom', label: 'Ketinggian akhir', symbol: 'h<sub>2</sub>', unit: 'm', min: 0, max: 9, step: 1 },
     { key: 'time', label: 'Waktu turun', symbol: 't', unit: 's', min: 20, max: 200, step: 5 },
-    { key: 'power', label: 'Daya maksimum lift', symbol: 'P', unit: 'W', min: 2000, max: 30000, step: 500 },
+    { key: 'power', label: 'Daya lift', symbol: 'P', unit: 'W', min: 2000, max: 30000, step: 500 },
   ],
   formula: 'P = F · v &nbsp;&nbsp; v = s / t',
   assumptions:
-    'Lift dimodelkan tanpa beban penyeimbang. Saat turun, energi potensial berkurang dan rem mesin menyerap energi itu. Daya rem adalah energi yang dapat diserap setiap detik. Kecepatan yang diminta dihitung dari jarak turun dibagi waktu. Jika daya cukup, lift turun dengan kecepatan tetap. Jika daya kurang, lift makin cepat. Rem darurat mulai bekerja saat kecepatannya mencapai 115% kecepatan yang diminta. Batas massa dalam perhitungan berlaku untuk kecepatan tersebut. Menambah waktu turun mengurangi kebutuhan daya. Model ini mengabaikan batas kekuatan struktur lift.',
+    'Lift dimodelkan tanpa beban penyeimbang. Saat turun, energi potensial berkurang dan rem mesin menyerap energi itu. Daya lift adalah laju mesin menyerap energi saat lift turun, yaitu energi yang dapat diserap setiap detik. Kecepatan yang diminta dihitung dari jarak turun dibagi waktu. Jika daya cukup, lift turun dengan kecepatan tetap. Jika daya kurang, lift makin cepat. Rem darurat mulai bekerja saat kecepatannya mencapai 115% kecepatan yang diminta. Batas massa dalam perhitungan berlaku untuk kecepatan tersebut. Menambah waktu turun mengurangi kebutuhan daya. Model ini mengabaikan batas kekuatan struktur lift.',
   compare: {
     question: 'Lift mana yang sampai ke lantai tujuan?',
-    sub: 'Kedua lift turun dari 30 m ke 5 m dalam 100 detik. Daya rem mesin 10 kW.',
+    sub: 'Kedua lift turun dari 30 m ke 5 m dalam 100 detik. Daya lift 10 kW (laju mesin menyerap energi saat turun).',
     experimentQuestion: () => 'Lift mana yang sampai ke lantai tujuan?',
     context: (A, B, f) => [
       A.top === B.top && A.bottom === B.bottom && A.time === B.time
         ? `Turun dari ${f(A.top)} m ke ${f(A.bottom)} m dalam ${f(A.time)} detik.`
         : `A turun dari ${f(A.top)} ke ${f(A.bottom)} m dalam ${f(A.time)} detik. B dari ${f(B.top)} ke ${f(B.bottom)} m dalam ${f(B.time)} detik.`,
       A.cabin === B.cabin && A.power === B.power
-        ? `Kabin ${f(A.cabin)} kg, daya rem ${f(A.power / 1000)} kW.`
+        ? `Kabin ${f(A.cabin)} kg, daya lift ${f(A.power / 1000)} kW.`
         : `Kabin A ${f(A.cabin)} kg, rem ${f(A.power / 1000)} kW. Kabin B ${f(B.cabin)} kg, rem ${f(B.power / 1000)} kW.`,
     ].join(' '),
     options: ['Keduanya sampai', 'Hanya A', 'Hanya B', 'Keduanya berhenti lebih awal'],
@@ -43,7 +43,7 @@ export default {
       `<span class="a">${f(rA.absorbed)} W</span> ${rA.ok ? '≤' : '&gt;'} ${f(A.power)} W ${rB.ok ? '≥' : '&lt;'} <span class="b">${f(rB.absorbed)} W</span>`,
     caption: (A, rA, B, rB, f) => `P = m<sub>total</sub> · g · v, v = ${f(rA.speed, 2)} m/s — muatan maksimum ${f(Math.max(0, rA.maxPayload))} kg = ${f(rA.maxPayloadWeight)} N`,
     verdict: (A, rA, B, rB, f) =>
-      rA.ok && !rB.ok ? `Hanya A sampai ke tujuan. Pada kecepatan ini, rem mesin dapat mengendalikan muatan hingga ${f(rA.maxPayload)} kg. Muatan B membutuhkan daya rem ${f(rB.absorbed)} W, melebihi ${f(B.power)} W yang tersedia.` : rA.ok && rB.ok ? 'Kedua lift sampai ke tujuan.' : 'Daya rem mesin terlampaui. Periksa hasil tiap lift.',
+      rA.ok && !rB.ok ? `Hanya A sampai ke tujuan. Pada kecepatan ini, rem mesin dapat mengendalikan muatan hingga ${f(rA.maxPayload)} kg. Muatan B membutuhkan daya lift ${f(rB.absorbed)} W, melebihi ${f(B.power)} W yang tersedia.` : rA.ok && rB.ok ? 'Kedua lift sampai ke tujuan.' : 'Daya lift terlampaui. Periksa hasil tiap lift.',
     diagram: 'Diagram gaya pada kabin',
     // the brake can supply at most P / v: an overloaded cabin is NOT in equilibrium
     forces: (p, r) => [
@@ -59,8 +59,8 @@ export default {
     `m<sub>total</sub> = F / g = ${f(r.maxTotalMass)} kg → m<sub>muatan</sub> = ${f(r.maxTotalMass)} − ${f(p.cabin)} = ${f(r.maxPayload)} kg`,
     r.maxPayload >= 0
       ? `Berat muatan maksimum = ${f(Math.max(0, r.maxPayload))} × 10 = <b>${f(r.maxPayloadWeight)} N</b>`
-      : 'Bahkan kabin kosong sudah melampaui daya maksimum dalam model ini.',
-    `Muatan sekarang ${f(p.payload)} kg membutuhkan daya rem ${f(r.absorbed)} W → ${r.ok ? 'sesuai kemampuan rem mesin' : '<b>melebihi kemampuan rem mesin</b>'}.`,
+      : 'Bahkan kabin kosong sudah melampaui daya lift dalam model ini.',
+    `Muatan sekarang ${f(p.payload)} kg membutuhkan daya lift ${f(r.absorbed)} W → ${r.ok ? 'sesuai kemampuan rem mesin' : '<b>melebihi kemampuan rem mesin</b>'}.`,
   ],
   worksheet: {
     question: 'Berapa berat (gaya berat) maksimum muatan lift pada soal asli?',

@@ -1,5 +1,5 @@
 /* ---------- SVG scenes ---------- */
-.scene-svg { display: block; width: 100%; height: auto; font-family: var(--font); }
+.scene-svg { display: block; width: 100%; height: auto; font-family: var(--font); font-variant-numeric: tabular-nums; }
 
 /* backgrounds are transparent so the stage colour shows through */
 .scene-svg .wall, .scene-svg .sky { fill: transparent; }

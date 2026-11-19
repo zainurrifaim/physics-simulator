@@ -7,6 +7,7 @@
 import { arrow, tag, svg, sub, vlen } from './draw.js';
 import { fbdPanel, fbdLayout } from './fbd-panel.js';
 import { lifterPose, drawFigure, BODY } from './rig.js';
+import { fmtFixed } from '../format.js';
 import { G, OVERSPEED_TRIP, SAFETY_DECEL } from '../physics/models.js';
 
 export const GROUND = 352;            // y of height 0 m
@@ -53,8 +54,8 @@ export const TAGS = { x: 4, y: 5, w: 176, h: 96 };
 export const STATUS = { x: 186, y: 3, w: 210, h: 34 };
 export const LOAD_PANEL = { x: 174, y: 308, w: 252, h: 72 };
 export const GAUGES = {
-  desktop: { x: 18, y: 276, w: 132, dy: 42, power: 'Daya rem' },
-  portrait: { x: 460, y: 408, w: 124, dy: 44, power: 'Daya rem' },
+  desktop: { x: 18, y: 276, w: 132, dy: 42, power: 'Daya lift' },
+  portrait: { x: 460, y: 408, w: 124, dy: 44, power: 'Daya lift' },
 };
 
 /** Everything in the callout that does not move (it shows the cabin, not the shaft). */
@@ -159,7 +160,7 @@ export function statusLines(p, r, s, f) {
   const vd = r.speed < 0.1 ? 3 : 2;
   if (!(s.t > 0)) return { cls: '', lines: ['Siap turun', `dari h₁ = ${f(p.top)} m ke h₂ = ${f(p.bottom)} m`] };
   if (s.phase === 'arrived') return { cls: 'ok', lines: [`Tiba di h₂ = ${f(p.bottom)} m`, 'berhenti di lantai tujuan'] };
-  if (s.phase === 'descend') return { cls: '', lines: ['Turun dengan kecepatan tetap', `v = ${f(s.speed, vd)} m/s`] };
+  if (s.phase === 'descend') return { cls: '', lines: ['Turun dengan kecepatan tetap', `v = ${fmtFixed(s.speed, vd)} m/s`] };
   if (s.phase === 'overspeed') return { cls: 'warn', lines: ['Rem mesin kurang kuat', 'kabin makin cepat'] };
   if (BRAKED.has(s.phase)) return { cls: 'warn', lines: ['Rem darurat aktif', `berhenti di ${f(r.stopHeight, 2)} m`] };
   return { cls: 'warn', lines: ['Menghantam peredam', `v = ${f(r.impactSpeed, vd)} m/s`] };
@@ -229,8 +230,8 @@ export function render(p, r, s, f) {
   const dx = INSET.x + INSET.w - 50;
   const display = `
     <rect class="lift-display" x="${dx - 46}" y="${INSET.y + 6}" width="92" height="36" rx="4"/>
-    <text class="display-big" x="${dx}" y="${INSET.y + 22}" text-anchor="middle">${moving ? '▼' : '■'} ${f(s.position, moving ? 1 : 2)} m</text>
-    <text class="display-small${failed && s.speed > r.speed * 1.0001 ? ' warn' : ''}" x="${dx}" y="${INSET.y + 36}" text-anchor="middle">v = ${f(s.speed, vd)} m/s</text>`;
+    <text class="display-big" x="${dx}" y="${INSET.y + 22}" text-anchor="middle">${moving ? '▼' : '■'} ${fmtFixed(s.position, 1)} m</text>
+    <text class="display-small${failed && s.speed > r.speed * 1.0001 ? ' warn' : ''}" x="${dx}" y="${INSET.y + 36}" text-anchor="middle">v = ${fmtFixed(s.speed, vd)} m/s</text>`;
   const inset = `
     <g class="lift-inset">
       <rect class="inset-frame" x="${INSET.x}" y="${INSET.y}" width="${INSET.w}" height="${INSET.h}" rx="6"/>
@@ -267,8 +268,8 @@ export function render(p, r, s, f) {
     const powerMarks = [{ value: p.power, label: 'maks', cls: 'limit', anchor: showNeed ? 'end' : 'middle' }];
     if (showNeed) powerMarks.push({ value: r.absorbed, label: `perlu ${f(r.absorbed)} W${r.absorbed > pMax ? ' ▸' : ''}`, cls: 'need', anchor: 'end', row: 1 });
     return `
-      ${gauge(G0.x, G0.y, G0.w, 'Laju turun', s.speed, vMax, speedMarks, `${f(s.speed, vd)} m/s`, failed ? 'warn' : '', showPeak ? peak : 0)}
-      ${gauge(G0.x, G0.y + G0.dy, G0.w, G0.power, s.drivePower, pMax, powerMarks, `${f(s.drivePower)} W`, failed ? 'warn' : 'ok')}`;
+      ${gauge(G0.x, G0.y, G0.w, 'Laju turun', s.speed, vMax, speedMarks, `${fmtFixed(s.speed, vd)} m/s`, failed ? 'warn' : '', showPeak ? peak : 0)}
+      ${gauge(G0.x, G0.y + G0.dy, G0.w, G0.power, s.drivePower, pMax, powerMarks, `${fmtFixed(s.drivePower, 0).padStart(fmtFixed(p.power, 0).length, ' ')} W`, failed ? 'warn' : 'ok')}`;
   };
 
   // ---- labels
@@ -296,7 +297,7 @@ export function render(p, r, s, f) {
     <g class="layer layer-labels">
       ${levelLabels}
       <g class="layer layer-forces desktop-detail">${tag(96, 18, `m${sub('lift')} = ${f(p.cabin)} kg`, failed && r.maxPayload < 0 ? 'warn' : '')}
-      ${tag(96, 66, `P maks = ${f(p.power)} W`, 'accent')}
+      ${tag(96, 66, `P lift = ${f(p.power)} W`, 'accent')}
       ${tag(96, 90, `s = ${f(r.drop)} m dalam ${f(p.time)} s`)}</g>
       <g class="scene-status">${statusBox(INSET.x + INSET.w / 2, st.lines, st.cls)}</g>
     </g>
@@ -309,7 +310,7 @@ export function render(p, r, s, f) {
   );
 }
 
-export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 622', cleanDesktop: '180 0 420 380', cleanPortrait: '180 0 420 380' };
+export const camera = { desktop: '0 0 600 380', portrait: '180 0 420 622' };
 
 /** The ± payload panel: under the left column on desktop, below the scene in portrait. */
 export const loadOffset = { desktop: [-18, 0], portrait: [10, 80] };

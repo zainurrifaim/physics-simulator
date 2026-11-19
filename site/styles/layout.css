@@ -189,7 +189,7 @@ main {
 
 /* ---------- concept + notes pages ---------- */
 .page-heading { margin-bottom: 28px; }
-.concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 20px; }
 .concept-card h2 { font-size: 1.15rem; }
 .unit-line { font-size: 0.82rem; color: var(--muted); margin-top: -8px; }
 .concept-links { display: flex; flex-wrap: wrap; gap: 16px; }

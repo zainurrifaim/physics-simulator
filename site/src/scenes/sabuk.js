@@ -8,6 +8,7 @@
 import { arrow, tag, svg, sub, vlen } from './draw.js';
 import { twoBone, BODY } from './rig.js';
 import { fbdPanel, fbdLayout } from './fbd-panel.js';
+import { fmtFixed } from '../format.js';
 import { DASH_GAP } from '../physics/models.js';
 
 export const PX_PER_M = 100;
@@ -238,7 +239,7 @@ export function fbdForces(p, s) {
 function fbdNotes(p, r, s, f) {
   const sum = fbdForces(p, s).filter((F) => F.dx).reduce((a, F) => a + F.value, 0);
   return s.phase === 'ready' ? [`Sebelum menabrak: N = F${sub('g')}, ΣF = 0`, 'dummy bergerak bersama mobil']
-    : s.phase === 'braking' ? [`ΣF = F${sub('sabuk')} = m · |a| = ${f(p.mass)} × ${f(Math.abs(r.acceleration), 0)} = ${f(sum, 0)} N`, 'ke belakang → dummy melambat bersama mobil']
+    : s.phase === 'braking' ? [`ΣF = F${sub('sabuk')} = m · |a| = ${f(p.mass)} × ${f(Math.abs(r.acceleration), 0)} = ${fmtFixed(sum, 0)} N`, 'ke belakang → dummy melambat bersama mobil']
     : s.phase === 'stopped' ? [`Diam: N = F${sub('g')}, ΣF = 0`, 'sabuk tidak lagi menarik']
     : s.phase === 'torn' ? ['Sabuk robek: tidak ada gaya mendatar', `→ dummy tetap ${f(r.v0, 1)} m/s, mobil melambat`]
     : s.phase === 'impact' ? [`Membentur dasbor · kecepatan relatif ${f(r.impactSpeed, 1)} m/s`, s.dashForce > 0 ? `Δp = m · v = ${f(r.impulse, 0)} N·s; lalu dasbor mendorong` : `Δp = m · v = ${f(r.impulse, 0)} N·s · kini diam: ΣF = 0`]
@@ -252,11 +253,11 @@ function readout(p, r, s, f) {
   const fRef = Math.max(p.limit, r.force) * 1.08;
   const limX = x0 + 62 + (p.limit / fRef) * wBar;
   const torn = !s.beltIntact;
-  const fText = torn ? 'robek' : `${f(s.beltForce)} N`;
+  const fText = torn ? 'robek' : `${fmtFixed(s.beltForce, 0)} N`;
   return `<g class="readout">
     <rect class="ro-bg" x="${x0}" y="${y0}" width="${READOUT.w}" height="${READOUT.h}" rx="8"/>
-    <text class="ro-label" x="${x0 + 8}" y="${y0 + 22}">v mobil</text>${bar(y0 + 22, s.speed / vRef, 'velocity')}<text class="ro-value" x="${x0 + 188}" y="${y0 + 22}" text-anchor="end">${f(s.speed, 1)}</text>
-    <text class="ro-label" x="${x0 + 8}" y="${y0 + 44}">v dummy</text>${bar(y0 + 44, s.dummySpeed / vRef, torn ? 'warn' : 'velocity')}<text class="ro-value" x="${x0 + 188}" y="${y0 + 44}" text-anchor="end">${f(s.dummySpeed, 1)}</text>
+    <text class="ro-label" x="${x0 + 8}" y="${y0 + 22}">v mobil</text>${bar(y0 + 22, s.speed / vRef, 'velocity')}<text class="ro-value" x="${x0 + 188}" y="${y0 + 22}" text-anchor="end">${fmtFixed(s.speed, 1)}</text>
+    <text class="ro-label" x="${x0 + 8}" y="${y0 + 44}">v dummy</text>${bar(y0 + 44, s.dummySpeed / vRef, torn ? 'warn' : 'velocity')}<text class="ro-value" x="${x0 + 188}" y="${y0 + 44}" text-anchor="end">${fmtFixed(s.dummySpeed, 1)}</text>
     <text class="ro-unit" x="${x0 + 188}" y="${y0 + 56}" text-anchor="end">m/s</text>
     <text class="ro-label" x="${x0 + 8}" y="${y0 + 76}">F sabuk</text>${bar(y0 + 76, s.beltForce / fRef, 'force')}
     <path class="ro-limit" d="M${r1(limX)} ${y0 + 64}V${y0 + 83}"/>
@@ -327,7 +328,7 @@ export function render(p, r, s, f) {
   const gapM = DASH_GAP - (torn ? s.dummyOffset : 0);
   const gapY = ROAD - 1.2 * S;   // above the force arrows, below the roof
   const gapDim = gapM > 0.12
-    ? `<g class="gap-dim"><path d="M${r1(pose.chest.x)} ${r1(gapY)}H${r1(g.dash.x)}M${r1(pose.chest.x)} ${r1(gapY - 4)}v8M${r1(g.dash.x)} ${r1(gapY - 4)}v8"/><text x="${r1((pose.chest.x + g.dash.x) / 2)}" y="${r1(gapY - 6)}" text-anchor="middle">${f(gapM, 2)} m</text></g>`
+    ? `<g class="gap-dim"><path d="M${r1(pose.chest.x)} ${r1(gapY)}H${r1(g.dash.x)}M${r1(pose.chest.x)} ${r1(gapY - 4)}v8M${r1(g.dash.x)} ${r1(gapY - 4)}v8"/><text x="${r1((pose.chest.x + g.dash.x) / 2)}" y="${r1(gapY - 6)}" text-anchor="middle">${fmtFixed(gapM, 2)} m</text></g>`
     : '';
   const status = impact ? tag(STATUS.x, STATUS.y, 'Membentur dasbor!', 'warn')
     : torn ? tag(STATUS.x, STATUS.y, 'SABUK ROBEK!', 'warn')
@@ -384,9 +385,8 @@ export function render(p, r, s, f) {
     <g class="layer layer-forces">
       ${beltF > 0 ? (() => {
         const tip = fx - vlen(beltF, Math.max(p.limit, r.force), 90, 26);
-        // label above the arrow, inside the cabin (starts at the cabin's rear edge at the earliest)
-        const lx = Math.max(tip, P({ x: CAR.cabinRear + 0.04, y: 0 }).x);
-        return `${arrow(fx, fy, tip, fy, 'force', '')}<g class="vec vec-force"><text class="vec-label" x="${r1(lx)}" y="${r1(fy - 9)}">F${sub('sabuk')} = ${f(beltF)} N</text></g>`;
+        // label sits left of the arrow tip (N and Fg labels go right of their arrows), so none overlap
+        return arrow(fx, fy, tip, fy, 'force', `F${sub('sabuk')} = ${fmtFixed(beltF, 0)} N`, { labelSide: 'left' });
       })() : ''}
       ${s.dashForce > 0 ? arrow(fx, fy, fx - 60, fy, 'force', `F${sub('dasbor')}`, { labelSide: 'left' }) : ''}
       ${arrow(cg.x, cg.y, cg.x, cg.y + WEIGHT_PX, 'force', `F${sub('g')} = ${f(p.mass * 10)} N`)}
@@ -394,7 +394,7 @@ export function render(p, r, s, f) {
       <circle class="vec-dot" cx="${r1(cg.x)}" cy="${r1(cg.y)}" r="3"/>
     </g>
     <g class="layer layer-motion">
-      ${arrow(vX, vY, vX + speedLen, vY, 'velocity', speedLen > 4 ? `v = ${f(s.speed, 1)} m/s` : '', { labelSide: 'center' })}
+      ${arrow(vX, vY, vX + speedLen, vY, 'velocity', speedLen > 4 ? `v = ${fmtFixed(s.speed, 1)} m/s` : '', { labelSide: 'center' })}
       ${speedLen <= 4 ? tag(vX + 30, vY, 'v = 0') : ''}
     </g>
   `,

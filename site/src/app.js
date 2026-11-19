@@ -110,23 +110,35 @@ function route() {
   mainEl.focus({ preventScroll: true });
 }
 
-function closeMenu() {
+let menuOpener = null;
+function setMenu(open, opener) {
+  document.body.classList.toggle('menu-open', open);
+  document.querySelector('#sidebar').inert = !open;
+  document.querySelector('.app-body').inert = open;
+  document.querySelectorAll('[data-action="menu"]').forEach((button) => button.setAttribute('aria-expanded', String(open && button === opener)));
+  if (open) { menuOpener = opener; document.querySelector('#sidebar .nav-link')?.focus(); }
+}
+function closeMenu(restore = false) {
+  const wasOpen = document.body.classList.contains('menu-open'), opener = menuOpener;
+  menuOpener = null;
   document.body.classList.remove('menu-open');
+  document.querySelector('.app-body').inert = false;
   document.querySelector('#sidebar').inert = true;
   document.querySelectorAll('[data-action="menu"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  if (restore && wasOpen && opener?.isConnected) opener.focus();
 }
 
 document.addEventListener('click', (e) => {
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (action === 'guide') document.querySelector('#guide').showModal();
   else if (action === 'menu') {
-    const open = document.body.classList.toggle('menu-open');
-    document.querySelector('#sidebar').inert = !open;
-    e.target.closest('[data-action]').setAttribute('aria-expanded', String(open));
-  } else if (action === 'menu-close') closeMenu();
+    if (document.body.classList.contains('menu-open')) closeMenu(true);
+    else setMenu(true, e.target.closest('[data-action]'));
+  } else if (action === 'menu-close') closeMenu(true);
+  else if (e.target.closest('#sidebar a') && document.body.classList.contains('menu-open')) closeMenu(false);
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeMenu();
+  if (e.key === 'Escape') closeMenu(true);
 });
 document.addEventListener('progress-changed', updateProgress);
 

@@ -15,25 +15,41 @@ import { arrow, dimV, svg, sub } from './draw.js';
 import { twoBone, BODY } from './rig.js';
 import { sample, solve, G } from '../physics/models.js';
 import { fbdPanel } from './fbd-panel.js';
+import { fmtFixed } from '../format.js';
 
 export const BIKE_K = 40;          // px per metre for the (enlarged) bike and rider
-export const GROUND_Y = 326;       // flat ground at the foot of the hill
-const TOP_MIN = 116;               // highest start point (room for the rider and N above it)
-const X0 = 180, X1 = 512;          // horizontal room for the slope (start … finish marks)
+export const GROUND_Y = 320;       // flat ground at the foot of the hill
+const X0 = 175;                    // leftmost the hilltop may be (room for the waiting rider and the h label)
+// The foot of the slope is at x = FOOT_A + FOOT_B · L: LINEAR in the slope length (and independent of
+// h), so the L handle, which sits just left of the foot, follows a drag exactly and the drag factor
+// is the constant 1 / FOOT_B. The hilltop then lies width px to the left of the foot.
+const FOOT_A = 352, FOOT_B = 0.6067;
+const TOP_X_MAX = 330;             // steeper slopes than the sliders allow stop here (info panel)
 export const HANDLE_X = 58;        // height handle on the plateau, left of the waiting rider
 export const STROBE = 8;           // stroboscope: number of equal time intervals
 export const FORCE_K = 0.04;       // px per newton (same for every setup: 800 N = 32 px)
 export const V_K = 90 / Math.sqrt(2 * 10 * 150); // px per m/s (90 px at the fastest possible 54,8 m/s)
-export const PANEL = { x0: 380, y0: 0, x1: 560, y1: 116 }; // info panel (tags, energy, legend)
+export const PANEL = { x0: 380, y0: 0, x1: 560, y1: 102 }; // info panel (tags, energy, legend)
 export const VIEW = { x: 40, y: 0, w: 520, h: 380 };   // the scene itself (slope, bike, labels)
 /**
- * Free-body diagram of rider + bike: a strip under the ground, inside both cameras and clear of
- * the whole scene. One scale for every setup: 0,03 px/N (800 N = 24 px, 1 600 N = 48 px,
- * 2 000 N = 60 px), so A and B differ visibly; nothing in the slider range exceeds maxLen.
+ * Free-body diagram of rider + bike: a compact panel in the sky band above the scene (y < 0, inside
+ * both cameras), clear of the hilltop even for the tallest hill (its top stays at y ≥ TOP_LIMIT).
+ * One scale for every setup: 0,02 px/N (800 N = 16 px, 1 600 N = 32 px, 2 000 N = 40 px), so
+ * A and B differ visibly; nothing in the slider range exceeds maxLen.
  */
-export const FBD = { x: 44, y: 386, w: 512, h: 142, k: 0.03, maxLen: 62, cx: 360, cy: 76 };
+export const FBD = { x: 44, y: -54, w: 230, h: 108, k: 0.02, maxLen: 42, cx: 122, cy: 60 };
+const TOP_LIMIT = 124;             // highest y the hilltop may reach (the bike's head stays below the diagram)
 const V_INSET = 9;                 // velocity arrow: px inside the slope line
-const DEPTH = { vLabel: 25, fgLabel: 39, lLabel: 58, lHandle: 64, lHandleOut: 175 };
+const DEPTH = { vLabel: 25, fgLabel: 39, lLabel: 58 };
+// Hill scale (px per metre) depends on the slope length only: s = HILL_C · L^-HILL_A. It is chosen
+// so the widest hill (L = 300, 330 px) fits between X0 and the foot and the tallest (h = 150 at L ≥ 215: top at
+// y ≈ TOP_LIMIT) fits the height, so the drawing never overflows for any allowed h and L, while the
+// preset hill (L = 160) is drawn at ≈ 1,6 px/m. An exponent well below 1 keeps the foot's x clearly
+// increasing with L, so the L handle's drag factor stays valid over a whole drag step. Because the
+// scale does not depend on h, the h handle (y = GROUND_Y − h·s) moves exactly h·s px for a change of
+// h; the L handle sits at the foot of the slope, on a fixed y, so it only ever moves along x.
+const HILL_C = 33, HILL_A = 0.6;
+const L_HANDLE = { dx: -24, y: GROUND_Y + 34 };   // L handle: just left of the foot, in the ground band
 
 // Bike, side view, in metres: x forward along the slope, y up from the slope surface.
 const WHEEL_R = 0.34;
@@ -97,24 +113,22 @@ export function layout(p) {
   const theta = Math.asin(sin);
   const u = { x: cos, y: sin };          // down the slope (screen coordinates, y down)
   const n = { x: sin, y: -cos };         // outward normal (away from the hill)
-  const room = X1 - X0;
-  const scale = Math.min(cos > 1e-9 ? room / (p.length * cos) : Infinity, (GROUND_Y - TOP_MIN) / p.height);
+  const foot = FOOT_A + FOOT_B * p.length;
+  // the min() terms only act on slopes steeper than the sliders allow (sin θ > 0,7); the hill then
+  // keeps fitting, but that scale depends on h
+  const scale = Math.min(HILL_C * Math.pow(p.length, -HILL_A), cos > 1e-9 ? (foot - X0) / (p.length * cos) : Infinity, (GROUND_Y - TOP_LIMIT) / p.height);
   const width = p.length * cos * scale;
   const lengthPx = p.length * scale;
-  // a steep (narrow) slope sits right of the bottom-left corner, which stays free for the ± panel
-  const top = { x: X0 + (room - width) * 0.45, y: GROUND_Y - p.height * scale };
+  const top = { x: Math.min(foot - width, TOP_X_MAX), y: GROUND_Y - p.height * scale };
   const finish = { x: top.x + width, y: GROUND_Y };
   const R = WHEEL_R * BIKE_K;
   const tanHalf = Math.tan(theta / 2);
   // wheel-centre path: plateau line, arc of radius R round the hilltop corner, slope line,
   // corner at the foot (wheel touching slope and ground), ground line
   const path = { R, arc: R * theta, slope: lengthPx - R * tanHalf, corner: { x: finish.x + R * tanHalf, y: GROUND_Y - R } };
-  // L handle: inside the hill below the slope (never on the bike's path); above the path
-  // when the hill is too flat to hold it
-  const at = add(top, u, 0.55 * lengthPx);
-  const inside = add(at, n, -DEPTH.lHandle);
-  const lHandle = inside.y + 18 <= 372 ? inside : add(at, n, DEPTH.lHandleOut);
-  const dimX = Math.min(top.x - 56, lHandle.x < top.x ? lHandle.x - 30 : Infinity);
+  // L handle: under the foot of the slope, in the ground band (never on the bike's path)
+  const lHandle = { x: finish.x + L_HANDLE.dx, y: L_HANDLE.y };
+  const dimX = top.x - 56;
   return { sin, cos, theta, u, n, scale, lengthPx, top, finish, crest: top, foot: finish, path, lHandle, dimX };
 }
 
@@ -196,7 +210,7 @@ export function geometry(p, r, s) {
     if (nLen < 2) { // N = 0: written under the Fg label (see labels())
       const high = com.y + wLen - 14 < PANEL.y1 + 16;
       anchor = high ? 'middle' : 'start'; x = high ? com.x : com.x + 8;
-      y = high ? com.y + wLen + 31 : Math.min(com.y + wLen - 2, 358) + 15;
+      y = high ? com.y + wLen + 31 : Math.min(com.y + wLen - 2, GROUND_Y + 32) + 15;
     }
     // "N = 1.386 N": ≈ 7,5 px per character of the bold 13 px label
     const digits = String(Math.round(r.normal)).length, w = 7.5 * (6 + digits + Math.floor((digits - 1) / 3));
@@ -256,11 +270,11 @@ export function labels(p, r, s, g = s && geometry(p, r, s)) {
   const out = {};
   // L label: inside the hill at 30 % of the slope
   const lAt = add(top, u, 0.3 * L.lengthPx);
-  out.l = { at: add(lAt, n, -Math.min(DEPTH.lLabel, (376 - lAt.y) / Math.max(L.cos, 0.01))), anchor: 'middle', text: `L = ${p.length} m` };
-  // h label left of the dimension line; scale note under it (or in the sky for a low hill)
+  out.l = { at: add(lAt, n, -Math.min(DEPTH.lLabel, (GROUND_Y + 10 - lAt.y) / Math.max(L.cos, 0.01))), anchor: 'middle', text: `L = ${p.length} m` };
+  // h label left of the dimension line; scale note under it (or in the sky above the plateau for a low hill)
   const hPx = GROUND_Y - top.y;
   out.h = { x: L.dimX - 8, y: (top.y + GROUND_Y) / 2 + 4 };
-  out.note = hPx >= 90 ? { x: 46, y: out.h.y + 24 } : { x: PANEL.x0 + 6, y: PANEL.y1 + 14 };
+  out.note = hPx >= 150 ? { x: 46, y: out.h.y + 24 } : { x: 46, y: top.y - 62 };
   if (!s) return out;
   // v label trails the velocity arrow's tail, inside the hill
   out.v = { at: add(add(g.velocity.from, u, -4), n, -(DEPTH.vLabel - V_INSET)), anchor: 'end' };
@@ -276,7 +290,7 @@ export function labels(p, r, s, g = s && geometry(p, r, s)) {
     // beside the tip; just under it when the tip is up by the info panel (bike at the hilltop)
     const high = wt.to.y - 14 < PANEL.y1 + 16;
     out.fg = high ? { at: { x: wt.to.x, y: wt.to.y + 16 }, anchor: 'middle', rotate: false }
-      : { at: { x: wt.to.x + 8, y: Math.min(wt.to.y - 2, 358) }, anchor: 'start', rotate: false };
+      : { at: { x: wt.to.x + 8, y: Math.min(wt.to.y - 2, GROUND_Y + 32) }, anchor: 'start', rotate: false };
   }
   return out;
 }
@@ -343,8 +357,8 @@ export function render(p, r, s, f) {
   const E = r.energy, barX = PANEL.x0 + 6, barW = 170, barY = 48;
   const epW = E > 0 ? (barW * Math.max(0, s.potential)) / E : 0;
   const energy = `<g class="energy-bar">
-      <text class="energy-text ep" x="${barX}" y="${barY - 5}">E${sub('p')} ${f(Math.max(0, s.potential), 0)} J</text>
-      <text class="energy-text ek" x="${barX + barW}" y="${barY - 5}" text-anchor="end">E${sub('k')} ${f(Math.min(E, s.kinetic), 0)} J</text>
+      <text class="energy-text ep" x="${barX}" y="${barY - 5}">E${sub('p')} ${fmtFixed(Math.max(0, s.potential), 0)} J</text>
+      <text class="energy-text ek" x="${barX + barW}" y="${barY - 5}" text-anchor="end">E${sub('k')} ${fmtFixed(Math.min(E, s.kinetic), 0)} J</text>
       <rect class="energy-track" x="${barX}" y="${barY}" width="${barW}" height="10" rx="3"/>
       <rect class="energy-ep" x="${barX}" y="${barY}" width="${n1(epW)}" height="10"/>
       <rect class="energy-ek" x="${n1(barX + epW)}" y="${barY}" width="${n1(barW - epW)}" height="10"/>
@@ -362,9 +376,9 @@ export function render(p, r, s, f) {
 
   return svg(
     `
-    <rect class="sky" x="0" y="0" width="600" height="380"/>
-    <circle class="sun" cx="86" cy="44" r="18"/>
-    <path class="cloud" d="M236 50a18 18 0 0 1 34-6a14 14 0 0 1 24 10H236Z"/>
+    <rect class="sky" x="0" y="-60" width="600" height="440"/>
+    <circle class="sun" cx="330" cy="-6" r="18"/>
+    <path class="cloud" d="M286 50a18 18 0 0 1 34-6a14 14 0 0 1 24 10H286Z"/>
     <path class="hill" d="M0 ${n1(top.y)}H${n1(top.x)}L${n1(finish.x)} ${GROUND_Y}H600V380H0Z"/>
     <rect class="ground" x="0" y="${GROUND_Y}" width="600" height="${380 - GROUND_Y}"/>
     <path class="slope-line track" d="M0 ${n1(top.y)}H${n1(top.x)}L${n1(finish.x)} ${GROUND_Y}H600"/>
@@ -392,12 +406,12 @@ export function render(p, r, s, f) {
     </g>
     <g class="layer layer-motion">
       ${g.along > 30 ? arrow(top.x, top.y, top.x + u.x * g.along, top.y + u.y * g.along, 'disp', '', { dashed: true }) : ''}
-      ${g.along > 90 ? rotText(sMid, `s = ${f(s.position, 1)} m`, 'disp-label') : ''}
+      ${g.along > 90 ? rotText(sMid, `s = ${fmtFixed(s.position, 1)} m`, 'disp-label') : ''}
       ${arrow(vx.from.x, vx.from.y, vx.to.x, vx.to.y, 'velocity', '')}
-      ${s.speed > 0 ? rotText(lb.v.at, `v = ${f(s.speed, 1)} m/s`, 'vec-label vec-velocity-text', 'end') : ''}
+      ${s.speed > 0 ? rotText(lb.v.at, `v = ${fmtFixed(s.speed, 1)} m/s`, 'vec-label vec-velocity-text', 'end') : ''}
       <g class="strobe-legend">
-        <text x="${right}" y="97" text-anchor="end">● jejak tiap Δt = ${f(dt, 2)} s</text>
-        <text x="${right}" y="110" text-anchor="end">jaraknya makin lebar → dipercepat</text>
+        <text x="${right}" y="83" text-anchor="end">● jejak tiap Δt = ${f(dt, 2)} s</text>
+        <text x="${right}" y="96" text-anchor="end">jaraknya makin lebar → dipercepat</text>
       </g>
     </g>
   `,
@@ -405,12 +419,12 @@ export function render(p, r, s, f) {
   );
 }
 
-// Content always lies in x 40…560 (slope, bike, labels, handles, info panel) with the free-body
-// diagram strip under the ground, so both cameras crop the empty side margins (labels ≈ 15 %
-// larger on phones) and reach down to include the diagram.
-// + 24 below the panel: room for the live readout line the workspace overlays at the figure's bottom-left
-const CAMERA = `${VIEW.x} ${VIEW.y} ${VIEW.w} ${FBD.y + FBD.h + 24 - VIEW.y}`;
-export const camera = { desktop: CAMERA, portrait: CAMERA, cleanDesktop: '40 0 520 380', cleanPortrait: '40 0 520 380' };
+// Content lies in x 40…560, y −58…380: the scene (slope, bike, labels, handles, info panel) plus a
+// strip of sky on top for the free-body diagram. Both cameras crop the empty side margins. One
+// camera per orientation, whatever layers are shown, so toggling "Gaya" never moves or rescales the
+// scene (the strip is just more sky when the diagram is hidden).
+const CAMERA = `${VIEW.x} ${FBD.y - 4} ${VIEW.w} ${VIEW.y + VIEW.h - FBD.y + 4}`;
+export const camera = { desktop: CAMERA, portrait: CAMERA };
 
 // ---------------------------------------------------------------- free-body diagram
 
@@ -437,20 +451,18 @@ export function fbdResultant(p, r) {
 function fbdSvg(p, r, f) {
   const L = layout(p), { u } = L;
   const cx = FBD.x + FBD.cx, cy = FBD.y + FBD.cy;
-  const half = 40;
+  const half = 34;
   const slope = `<path class="fbd-slope" d="M${n1(cx - u.x * half)} ${n1(cy - u.y * half)}L${n1(cx + u.x * half)} ${n1(cy + u.y * half)}"/>`;
-  // ΣF is drawn dashed, 5 px outside the slope line so it never hides N, F_g or the slope;
-  // a legend line (left, above the notes) says it is the resultant, not another force
+  // ΣF is drawn dashed, 5 px outside the slope line so it never hides N, F_g or the slope, and is
+  // labelled "ΣF" at its tip (it is the resultant, not another force)
   const sum = fbdResultant(p, r), len = sum.value * FBD.k;
   const from = { x: cx + L.n.x * 5, y: cy + L.n.y * 5 }, tip = { x: from.x + u.x * len, y: from.y + u.y * len };
-  const lx = FBD.x + 8, ly = FBD.y + FBD.h - 36;
-  const resultant = (len >= 2 ? `<g class="fbd-resultant">${arrow(from.x, from.y, tip.x, tip.y, 'disp', '')}</g>` : '')
-    + `<g class="fbd-resultant legend"><path class="fbd-legend-line" d="M${lx} ${ly - 4}h22"/><text x="${lx + 28}" y="${ly}">ΣF = resultan (jumlah gaya, bukan gaya baru)</text></g>`;
+  const resultant = len >= 2 ? `<g class="fbd-resultant">${arrow(from.x, from.y, tip.x, tip.y, 'disp', '')}<text x="${n1(tip.x + 4)}" y="${n1(tip.y + 12)}">ΣF</text></g>` : '';
   const a = r.acceleration;
   return fbdPanel(
-    { ...FBD, title: `Diagram gaya: pengendara + sepeda (m = ${f(p.mass)} kg)`, extra: slope + resultant },
+    { ...FBD, title: `Diagram gaya (m = ${f(p.mass)} kg)`, extra: slope + resultant },
     fbdForces(p, r),
-    [`ΣF = m g sin θ = ${f(p.mass * a, 0)} N sepanjang lereng`, `→ a = g sin θ = ${f(a, 2)} m/s² (massa saling menghilangkan)`],
+    [`ΣF = m g sin θ = ${f(p.mass * a, 0)} N`, `a = g sin θ = ${f(a, 2)} m/s²`],
     f,
   );
 }
@@ -460,8 +472,12 @@ export function handle(key, p, portrait = false) {
   const L = layout(p);
   // On the hilltop plateau (the start height), left of the rider waiting at the start.
   if (key === 'height') return { x: HANDLE_X, y: L.top.y, axis: 'y', factor: -1 / L.scale };
-  // Inside the hill below the slope (or above the path for a very flat hill): never on the bike's path.
-  return { x: L.lHandle.x, y: L.lHandle.y, axis: 'x', factor: 1 / (L.scale * Math.max(L.cos, 0.3)) };
+  // Under the foot of the slope, in the ground band: never on the bike's path. The hill is
+  // redrawn as L changes, so factor = dL/dx from the drawn foot position itself (the handle and
+  // the pointer stay together step after step).
+  const at = (len) => layout({ ...p, length: len }).lHandle.x;
+  const e = 0.5, dx = (at(p.length + e) - at(Math.max(p.height, p.length - e))) / (p.length + e - Math.max(p.height, p.length - e));
+  return { x: L.lHandle.x, y: L.lHandle.y, axis: 'x', factor: 1 / Math.max(dx, 0.05) };
 }
 
 // ---------------------------------------------------------------- ± mass panel placement
@@ -511,7 +527,11 @@ const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a
 const CANDIDATES = (() => {
   const out = [];
   // bottom rows first, then upwards; within a row the centre, then ever further out
-  for (let dy = 0; dy >= -300; dy -= 20) for (let k = 0; k <= 12; k++) out.push([(k % 2 ? -1 : 1) * Math.ceil(k / 2) * 22.5 || 0, dy]);
+  // (the outermost spots, panel flush with the left / right edge of the view, close each row)
+  for (let dy = 0; dy >= -300; dy -= 20) {
+    for (let k = 0; k <= 12; k++) out.push([(k % 2 ? -1 : 1) * Math.ceil(k / 2) * 22.5 || 0, dy]);
+    out.push([-134, dy], [134, dy]);
+  }
   return out;
 })();
 

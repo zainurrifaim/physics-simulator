@@ -32,7 +32,7 @@ const concepts = [
   {
     title: 'Kekekalan energi mekanik',
     formula: 'E<sub>p1</sub> + E<sub>k1</sub> = E<sub>p2</sub> + E<sub>k2</sub>',
-    unit: 'tanpa gesekan',
+    unit: 'joule (J), jika tanpa gesekan',
     text: 'Jika hanya gaya berat yang melakukan usaha, energi mekanik tetap. Energi potensial di puncak bukit berubah seluruhnya menjadi energi kinetik di dasar.',
     links: [['sepeda', 'Sepeda']],
   },
@@ -49,7 +49,7 @@ const conventions = [
   ['F<sub>g</sub>', 'gaya berat = m · g (newton). Ditulis F<sub>g</sub> agar tidak tertukar dengan W untuk usaha.'],
   ['g', '10 m/s² di semua soal, sesuai materi.'],
   ['Tanda', 'Arah positif dipilih sesuai perhitungan. Benda melambat jika arah percepatannya berlawanan dengan arah kecepatan.'],
-  ['Warna', 'jingga = gaya, biru = kecepatan, ungu putus-putus = perpindahan.'],
+  ['Warna', 'jingga = gaya, biru = kecepatan, ungu = perpindahan. Panah ungu putus-putus di diagram gaya adalah resultan ΣF (berlabel ΣF), bukan perpindahan.'],
   ['Konversi', '1 kW = 1.000 W · 1 km/jam = 1/3,6 m/s · 36 km/jam = 10 m/s.'],
 ];
 

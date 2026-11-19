@@ -27,20 +27,20 @@ export function isOriginalComparison(lesson, a, b) {
 
 /** Quantities actually compared in the experiment, distinct from worksheet answers. */
 export function comparisonValue(id, result) {
-  const [key, unit, label] = { angkat: ['work', 'J', 'E butuh'], derek: ['required', 'W', 'P butuh'], lift: ['absorbed', 'W', 'P rem'], sabuk: ['force', 'N', 'F butuh'], sepeda: ['duration', 's', 't'] }[id];
-  return { value: result[key], unit, label };
+  // digits match each lesson's compare.detail / verdict so the same number prints identically
+  const [key, unit, label, digits] = { angkat: ['work', 'J', 'E butuh', 2], derek: ['required', 'W', 'P butuh', 2], lift: ['absorbed', 'W', 'P lift', 2], sabuk: ['force', 'N', 'F butuh', 0], sepeda: ['duration', 's', 't', 2] }[id];
+  return { value: result[key], unit, label, digits };
 }
 
 /** Viewport of a module scene (600 × 380 coordinates); each scene owns its camera. */
-export function sceneCamera(id, portrait, forces = true) {
+export function sceneCamera(id, portrait) {
   const c = sceneModules[id].camera;
-  if (!forces) return (portrait ? c.cleanPortrait : c.cleanDesktop) ?? (portrait ? c.portrait : c.desktop);
   return portrait ? c.portrait : c.desktop;
 }
 
 export function sceneViewport(host, id) {
   const portrait = host.clientWidth < 500 && host.clientHeight > host.clientWidth * 0.9;
-  return { portrait, camera: sceneCamera(id, portrait, host.classList.contains('show-forces')) };
+  return { portrait, camera: sceneCamera(id, portrait) };
 }
 
 /** Drag-handle position and drag mapping; each scene owns the geometry it draws. */

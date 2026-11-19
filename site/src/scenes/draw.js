@@ -52,7 +52,12 @@ export function dimH(x1, x2, y, label) {
 }
 
 export function tag(x, y, text, cls = '') {
-  const w = text.replace(/<[^>]+>/g, '').length * 7 + 16;
+  let len = 0;
+  for (const part of text.split(/(<tspan[^>]*>[^<]*<\/tspan>)/)) {
+    const sub = part.startsWith('<tspan');
+    for (const ch of part.replace(/<[^>]+>/g, '')) len += (/[.,:;il1 |!']/.test(ch) ? 3.2 : /[A-Z0-9mw=Σ]/.test(ch) ? 6.9 : 6) * (sub ? 0.72 : 1);
+  }
+  const w = Math.ceil(len) + 18;
   return `<g class="tag ${cls}"><rect x="${n(x - w / 2)}" y="${y - 13}" width="${n(w)}" height="22" rx="11"/><text x="${x}" y="${y + 2}" text-anchor="middle">${text}</text></g>`;
 }
 

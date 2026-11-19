@@ -21,6 +21,11 @@ function fitFields(lesson, params) {
   return out;
 }
 
+/** Same decision for every lesson at a given viewport: portrait phones with a genuinely tall host box. */
+function isTall(view) {
+  return view.clientWidth > 0 && view.clientHeight >= 420 && matchMedia('(max-width: 600px) and (orientation: portrait)').matches;
+}
+
 export function renderWorkspace(main, lesson) {
   const cmp = lesson.compare, draft = store.draft(lesson.id);
   const st = {
@@ -85,7 +90,7 @@ export function renderWorkspace(main, lesson) {
     </dialog>
     <dialog class="workspace-dialog" id="explanation-notes" aria-labelledby="notes-title"><header><h2 id="notes-title">Penjelasan</h2><button class="icon-button" data-close-dialog aria-label="Tutup penjelasan">×</button></header><p id="eq-caption"></p><p id="verdict"></p><h3>Asumsi model</h3><p>${lesson.assumptions}</p></dialog>`;
   const $ = (selector) => main.querySelector(selector);
-  for (const preview of main.querySelectorAll('.preview-scene svg')) preview.setAttribute('viewBox', sceneCamera(lesson.id, false, false));
+  for (const preview of main.querySelectorAll('.preview-scene svg')) preview.setAttribute('viewBox', sceneCamera(lesson.id, false));
   const interactions = {};
   for (const c of ['A', 'B']) interactions[c] = mountInteraction($(`#scene-${c}`), lesson, c, () => st[c], (key, value) => update(c, key, value));
   mountWorksheet($('#lembar'), lesson, draft);
@@ -116,6 +121,7 @@ export function renderWorkspace(main, lesson) {
     const rate = total() / 5;
     const pace = Math.abs(rate - 1) < 0.05 ? '' : rate < 1 ? ` · gerak lambat ×${fmt(1 / rate, 0)}` : ` · dipercepat ×${fmt(rate, 0)}`;
     $('#clock').textContent = `${fmt(st.t, total() < 1 ? 3 : st.t > 0 && st.t < 0.1 ? 2 : 1)} s`;
+    $('#timeline').setAttribute('aria-valuetext', $('#clock').textContent);
     $('#clock').title = `Waktu simulasi${pace}`;
     $('[data-act="play"]').textContent = st.playing ? 'Jeda' : st.t >= total() ? 'Putar ulang' : 'Jalankan';
   }
@@ -153,13 +159,16 @@ export function renderWorkspace(main, lesson) {
     if (!unlocked()) return;
     // Preset prose contains fixed ratios. Custom setups use independent, exact results.
     const a = comparisonValue(lesson.id, st.rA), b = comparisonValue(lesson.id, st.rB);
-    $('#equation').innerHTML = original() ? cmp.equation(st.A, st.rA, st.B, st.rB, fmt) : `<span class="a">A: ${a.label ? `${a.label} ` : ''}${fmt(a.value)} ${a.unit}</span><span class="b">B: ${b.label ? `${b.label} ` : ''}${fmt(b.value)} ${b.unit}</span>`;
+    $('#equation').innerHTML = original() ? cmp.equation(st.A, st.rA, st.B, st.rB, fmt) : `<span class="a">A: ${a.label ? `${a.label} ` : ''}${fmt(a.value, a.digits)} ${a.unit}</span><span class="b">B: ${b.label ? `${b.label} ` : ''}${fmt(b.value, b.digits)} ${b.unit}</span>`;
     $('#eq-caption').innerHTML = original() ? cmp.caption(st.A, st.rA, st.B, st.rB, fmt) : `Hasil pengaturanmu · ${lesson.formula}`;
     $('#verdict').textContent = original() ? `${draft.prediction === undefined ? '' : draft.prediction === cmp.correct ? 'Prediksimu tepat. ' : 'Bandingkan dengan prediksimu. '}${cmp.verdict(st.A, st.rA, st.B, st.rB, fmt)}` : `A: ${cmp.detail(st.A, st.rA, fmt)} B: ${cmp.detail(st.B, st.rB, fmt)} Prediksi di awal berlaku untuk soal awal.`;
     $('#explanation-summary').textContent = $('#verdict').textContent;
     $('.analysis-select').value = st.analysis;
-    const portrait = window.matchMedia('(max-width: 600px)').matches;
-    $('#analysis-view').innerHTML = st.analysis === 'graph' ? compareChart(lesson, cases(), total(), st.t, { reveal: true, tall: portrait }) : st.analysis === 'forces' ? forceDiagram(lesson, cases(), { stacked: portrait }) : ['A', 'B'].map((c) => `<h3 class="case-${c.toLowerCase()}">Perhitungan situasi ${c}</h3><ol class="worked">${lesson.worked(st[c], st[`r${c}`], fmt).map((line) => `<li>${line}</li>`).join('')}</ol>`).join('');
+    const portrait = window.matchMedia('(max-width: 600px)').matches, view = $('#analysis-view');
+    // tall chart only when the host box is actually tall; otherwise the wide layout keeps text readable
+    const tall = isTall(view);
+    view.dataset.tall = String(tall);
+    view.innerHTML = st.analysis === 'graph' ? compareChart(lesson, cases(), total(), st.t, { reveal: true, tall }) : st.analysis === 'forces' ? forceDiagram(lesson, cases(), { stacked: portrait }) : ['A', 'B'].map((c) => `<h3 class="case-${c.toLowerCase()}">Perhitungan situasi ${c}</h3><ol class="worked">${lesson.worked(st[c], st[`r${c}`], fmt).map((line) => `<li>${line}</li>`).join('')}</ol>`).join('');
   }
   function renderTask() {
     const blocks = [...$('#lembar').querySelectorAll('.ws-block')];
@@ -232,7 +241,7 @@ export function renderWorkspace(main, lesson) {
   main.addEventListener('change', (e) => {
     const t = e.target;
     if (t.matches('.module-select select')) location.hash = `sim/${t.value}`;
-    if (t.matches('.step-select')) go(Number(t.value));
+    if (t.matches('.step-select')) go(Number(t.value), false);
     if (t.matches('.analysis-select')) { st.analysis = t.value; renderExplanation(); }
     if (t.dataset.param) { update(st.activeCase, t.dataset.param, t.value === '' ? NaN : Number(t.value)); t.value = st[st.activeCase][t.dataset.param]; }
     if (t.dataset.layer) {
@@ -251,7 +260,20 @@ export function renderWorkspace(main, lesson) {
   cameraMedia.addEventListener('change', resizeViews);
   const sceneObserver = new ResizeObserver(() => renderScenes());
   for (const host of main.querySelectorAll('.interactive-scene')) sceneObserver.observe(host);
+  let viewWidth = 0;
+  const viewObserver = new ResizeObserver(() => {
+    const view = $('#analysis-view'), w = view.clientWidth;
+    if (st.step !== 2 || st.analysis !== 'graph' || !w) return;
+    const tall = isTall(view);
+    if (w !== viewWidth || String(tall) !== view.dataset.tall) { viewWidth = w; renderExplanation(); }
+  });
+  viewObserver.observe($('#analysis-view'));
   $('#timeline').addEventListener('input', (e) => { pause(); st.t = Number(e.target.value) / 1000 * total(); renderScenes(); persist(); });
   renderControls(); renderPrediction(); go(0, false);
-  return () => { pause(); sceneObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChanged); cameraMedia.removeEventListener('change', resizeViews); Object.values(interactions).forEach((i) => i.cancel()); persist(); };
+  const reopened = [];
+  const beforePrint = () => { for (const d of main.querySelectorAll('details:not([open])')) { d.open = true; reopened.push(d); } };
+  const afterPrint = () => { for (const d of reopened.splice(0)) d.open = false; };
+  window.addEventListener('beforeprint', beforePrint);
+  window.addEventListener('afterprint', afterPrint);
+  return () => { window.removeEventListener('beforeprint', beforePrint); window.removeEventListener('afterprint', afterPrint); pause(); sceneObserver.disconnect(); viewObserver.disconnect(); document.removeEventListener('visibilitychange', visibilityChanged); cameraMedia.removeEventListener('change', resizeViews); Object.values(interactions).forEach((i) => i.cancel()); persist(); };
 }

@@ -8,7 +8,7 @@
 //   'stall'   load above the rated capacity; crate stays on the ground, cable taut
 // Geometry helpers are exported so tests check exactly what is drawn.
 import { arrow, tag, plant, svg } from './draw.js';
-import { sig } from '../format.js';
+import { sig, fmtFixed } from '../format.js';
 import { fbdLayout } from './fbd-panel.js';
 import { G } from '../physics/models.js';
 
@@ -83,14 +83,15 @@ export function geometry(p, r, s) {
 /** Compact force text: N below 1 kN, kN above (keeps labels inside the frame). */
 const forceText = (v, f) => (v >= 1000 ? `${f(v / 1000, 1)} kN` : `${f(v)} N`);
 /** "used / rated" power: W below 10 kW, kW above; adds digits until unequal values print differently. */
-export function powerPair(used, rated, f) {
-  const same = Math.abs(used - rated) <= 1e-9 * rated;
-  const text = (v, d) => (v >= 10000 ? `${f(v / 1000, d)} kW` : `${f(v, d - 1)} W`);
-  for (let d = 1; d <= 6; d++) {
-    const a = text(same ? rated : used, d), b = text(rated, d);
-    if (same || a !== b) return [a, b];
-  }
-  return [text(used, 6), text(rated, 6)];
+export function powerPair(used, rated, f, ref = used) {
+  // Unit and decimals come from the rated power and the steady value `ref` (not from the
+  // sampled `used`, which jumps 0 → ref), so the text keeps one width through a whole run.
+  const same = Math.abs(ref - rated) <= 1e-9 * rated;
+  const text = (v, d) => (rated >= 10000 ? `${fmtFixed(v / 1000, d)} kW` : `${fmtFixed(v, d - 1)} W`);
+  let d = 6;
+  for (let k = 1; k <= 6; k++) if (same || text(ref, k) !== text(rated, k)) { d = k; break; }
+  const b = text(rated, d);
+  return [text(same ? rated : used, d).padStart(b.length, ' '), b];
 }
 /** Height reached in a failed run: 3 significant figures, never printed as the full target. */
 export const reachedText = (reached, height, f) => (sig(reached) >= height ? `&lt; ${f(height)}` : f(sig(reached), 6));
@@ -211,15 +212,18 @@ function gauge(p, r, s, f) {
   const tf = clamp(s.t / p.time, 0, 1);
   const limited = s.phase === 'lift' && !r.powerOk;
   const tDigits = p.time < 20 ? 1 : 0;
-  const [used, rated] = powerPair(s.power, p.power, f);
+  const tAll = fmtFixed(p.time, tDigits);
+  const tNow = fmtFixed(s.t, tDigits).padStart(tAll.length, ' ');
+  const vDigits = r.speed > 0 ? Math.min(6, Math.max(2, 1 - Math.floor(Math.log10(r.speed)))) : 2;
+  const [used, rated] = powerPair(s.power, p.power, f, r.hoistPower);
   return `<g class="dk-gauge">
     <rect class="dk-panel" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>
     <text class="dk-g-title" x="${x + 8}" y="${y + 14}">Daya</text>
     <text class="dk-g-value" x="${x + w - 8}" y="${y + 14}" text-anchor="end">${used} / ${rated}</text>
     <rect class="dk-track" x="${x + 8}" y="${y + 19}" width="${inner}" height="7" rx="3.5"/>
     ${pf > 0 ? `<rect class="dk-fill${limited ? ' maxed' : ''}" x="${x + 8}" y="${y + 19}" width="${r1(Math.max(3, inner * pf))}" height="7" rx="3.5"/>` : ''}
-    <text class="dk-g-value" x="${x + 8}" y="${y + 40}">v = ${f(sig(s.speed), 6)} m/s</text>
-    <text class="dk-g-value" x="${x + w - 8}" y="${y + 40}" text-anchor="end">t = ${f(s.t, tDigits)} / ${f(p.time)} s</text>
+    <text class="dk-g-value" x="${x + 8}" y="${y + 40}">v = ${fmtFixed(s.speed, vDigits)} m/s</text>
+    <text class="dk-g-value" x="${x + w - 8}" y="${y + 40}" text-anchor="end">t = ${tNow} / ${tAll} s</text>
     <rect class="dk-track thin" x="${x + 8}" y="${y + 46}" width="${inner}" height="4" rx="2"/>
     ${tf > 0 ? `<rect class="dk-fill time" x="${x + 8}" y="${y + 46}" width="${r1(Math.max(2, inner * tf))}" height="4" rx="2"/>` : ''}
   </g>`;

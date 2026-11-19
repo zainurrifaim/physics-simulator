@@ -15,6 +15,22 @@ export function fmt(value, maxDigits = 2) {
   return f.format(Math.abs(value) < 1e-12 ? 0 : value);
 }
 
+const fixedFormatters = new Map();
+
+/**
+ * Fixed number of decimals ("29,0", "28,9"), for values that change while the simulation
+ * plays: the text keeps its width, so centred or end-anchored labels don't jitter.
+ */
+export function fmtFixed(value, digits = 1) {
+  if (!Number.isFinite(value)) return '–';
+  let f = fixedFormatters.get(digits);
+  if (!f) {
+    f = new Intl.NumberFormat('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    fixedFormatters.set(digits, f);
+  }
+  return f.format(Math.abs(value) < 0.5 * 10 ** -digits ? 0 : value);
+}
+
 /** Parse a number typed by an Indonesian learner: "1.500,5", "1500.5", "1500,5", "1,5". */
 export function parseNumber(text) {
   let s = String(text ?? '').trim().replace(/\s/g, '');

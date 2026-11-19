@@ -54,14 +54,14 @@ export default {
     question: 'Berapa energi potensial (usaha) yang dibutuhkan untuk mengangkat barbel pada soal asli?',
     vectors: [
       { key: 'Fg', label: 'Gaya berat F<sub>g</sub>', correct: 'down', magnitude: 200 },
-      { key: 'F', label: 'Gaya angkat F', correct: 'up', magnitude: 200 },
+      { key: 'F', label: 'Gaya angkat F', correct: 'up', magnitude: 200, magnitudeMin: true, minHint: 'gaya angkat harus sama atau lebih besar dari berat barbel (200 N) agar barbel naik' },
       { key: 's', label: 'Perpindahan s', correct: 'up' },
     ],
     directions: ['up', 'down', 'left', 'right'],
     rubric: [
       'Sketsa posisi awal: atlet membungkuk mengambil barbel dari lantai.',
       'Sketsa posisi akhir: atlet berdiri tegak dengan barbel di atas kepala.',
-      'Diagram vektor: F<sub>g</sub> ke bawah (200 N), F ke atas (≥ 200 N), s ke atas (1,5 m).',
+      'Diagram vektor: F<sub>g</sub> ke bawah (200 N), F ke atas (≥ 200 N; tepat 200 N jika kecepatan tetap), s ke atas (1,5 m).',
       'Perhitungan E<sub>p</sub> = mgh = 300 J dengan satuan, lalu dibandingkan dengan 500 J.',
     ],
     reflection: 'Jika massa barbel digandakan, apa yang terjadi pada energi yang dibutuhkan? Coba di simulasi, lalu jelaskan.',

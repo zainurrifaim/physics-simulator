@@ -71,14 +71,14 @@ export default {
     question: 'Berapa daya yang dibutuhkan untuk mengangkat kotak pada soal asli?',
     vectors: [
       { key: 'Fg', label: 'Gaya berat F<sub>g</sub>', correct: 'down', magnitude: 2000 },
-      { key: 'T', label: 'Gaya angkat (tegangan tali) T', correct: 'up', magnitude: 2000 },
+      { key: 'T', label: 'Gaya angkat (tegangan tali) T', correct: 'up', magnitude: 2000, magnitudeMin: true, minHint: 'gaya angkat harus sama atau lebih besar dari berat kotak (2.000 N) agar kotak naik' },
       { key: 's', label: 'Perpindahan s', correct: 'up' },
     ],
     directions: ['up', 'down', 'left', 'right'],
     rubric: [
       'Sketsa: derek di atas, kotak di bawah, ketinggian 15 m.',
       'Label: P = 20 kW = 20.000 W, m = 200 kg, t = 50 s, h = 15 m.',
-      'Diagram vektor: F<sub>g</sub> ke bawah (2.000 N), gaya angkat ke atas (= 2.000 N saat kecepatan tetap), s ke atas (15 m).',
+      'Diagram vektor: F<sub>g</sub> ke bawah (2.000 N), gaya angkat ke atas (≥ 2.000 N; tepat 2.000 N jika kecepatan tetap), s ke atas (15 m).',
       'Perhitungan W = 30.000 J, P = 600 W, lalu dibandingkan dengan 20.000 W.',
     ],
     reflection: 'Usaha dan daya sama-sama berhubungan dengan energi. Apa bedanya? Gunakan hasil eksperimenmu saat mengubah waktu angkat.',

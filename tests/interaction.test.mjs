@@ -52,8 +52,8 @@ test('drag mapping follows the geometry and moving upward increases target heigh
 
 test('custom elevator comparisons report braking power rather than the worksheet capacity', () => {
   const l = byId('lift');
-  assert.deepEqual(comparisonValue(l.id, solve(l.id, l.preset)), { value: 10000, unit: 'W', label: 'P rem' });
-  assert.deepEqual(comparisonValue(l.id, solve(l.id, { ...l.preset, payload: 2500 })), { value: 12500, unit: 'W', label: 'P rem' });
+  assert.deepEqual(comparisonValue(l.id, solve(l.id, l.preset)), { value: 10000, unit: 'W', label: 'P lift', digits: 2 });
+  assert.deepEqual(comparisonValue(l.id, solve(l.id, { ...l.preset, payload: 2500 })), { value: 12500, unit: 'W', label: 'P lift', digits: 2 });
 });
 
 test('charts include both independent limits when A/B settings differ', () => {
@@ -63,4 +63,16 @@ test('charts include both independent limits when A/B settings differ', () => {
   const chart = compareChart(l, cases, 2, 0);
   assert.match(chart, /A · energi tersedia 500 J/);
   assert.match(chart, /B · energi tersedia 800 J/);
+});
+
+test('scene camera does not depend on the force layer (Gaya toggle must not move the drawing)', async () => {
+  const { sceneCamera } = await import('../site/src/components/interaction.js');
+  const { sceneModules } = await import('../site/src/scenes/index.js');
+  for (const id of Object.keys(sceneModules)) {
+    const c = sceneModules[id].camera;
+    assert.ok(!Object.keys(c).some((k) => k.startsWith('clean')), `${id}: no separate clean cameras`);
+    for (const portrait of [false, true]) {
+      assert.equal(sceneCamera(id, portrait, true), sceneCamera(id, portrait, false), `${id} ${portrait ? 'portrait' : 'desktop'}`);
+    }
+  }
 });

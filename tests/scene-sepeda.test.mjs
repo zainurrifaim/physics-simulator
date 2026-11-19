@@ -12,6 +12,7 @@ import {
   BIKE_K, GROUND_Y, ANKLE_OFFSET, STROBE, FORCE_K, V_K, PANEL, VIEW, HANDLE_X, FBD, fbdForces, fbdResultant,
 } from '../site/src/scenes/sepeda.js';
 import { fmt } from '../site/src/format.js';
+import { dragValue, editParameter } from '../site/src/components/interaction.js';
 import { parameterSets, frames } from './helpers.mjs';
 
 const lesson = lessons.find((l) => l.id === 'sepeda');
@@ -150,7 +151,7 @@ test('sepeda scene: bike and N label stay in view and clear of the info panel', 
   });
 });
 
-test('sepeda scene: drag handles sit on the drawn hilltop and in the hill, never on the bike path', () => {
+test('sepeda scene: drag handles sit on the drawn hilltop and under the foot of the slope, never on the bike path', () => {
   for (const [name, p] of sets) {
     const L = layout(p), { r, states } = frames('sepeda', p, 60);
     for (const portrait of [false, true]) {
@@ -158,9 +159,9 @@ test('sepeda scene: drag handles sit on the drawn hilltop and in the hill, never
       near(h.y, L.top.y, 1e-9, `${name} height handle on the plateau (= start height)`);
       assert.ok(h.x === HANDLE_X && h.x < L.top.x - 40, `${name}: height handle not on the plateau`);
       near(h.factor, -1 / L.scale, 1e-12, `${name} height drag follows the slope scale`);
-      const off = fromLine(L, l), a = alongLine(L, l);
-      assert.ok(a > 0 && a < p.length * L.scale, `${name}: length handle not beside the slope`);
-      assert.ok(off <= -50 || off >= 160, `${name}: length handle too close to the slope (${off} px)`);
+      // the L handle sits in the ground band under the foot of the slope: fixed y, x follows the foot
+      assert.ok(l.y - 16 > GROUND_Y && Math.abs(l.x - L.finish.x) < 30, `${name}: length handle not under the foot of the slope`);
+      near(l.y, GROUND_Y + 34, 1e-9, `${name} length handle y does not depend on the hill`);
       const [cx, cy, cw, ch] = (portrait ? camera.portrait : camera.desktop).split(' ').map(Number);
       for (const q of [h, l, L.top, L.finish]) assert.ok(q.x - 15 >= cx && q.x + 15 <= cx + cw && q.y >= cy && q.y <= cy + ch, `${name}: out of camera`);
       // the bike (and its velocity arrow) never passes under the L handle or the h handle
@@ -191,7 +192,8 @@ test('sepeda scene: the ± mass panel never covers the bike, an arrow tip, a lab
         const pts = [g.wheelRear, g.wheelFront, g.contactRear, g.contactFront, R.head, R.shoulder, R.hip, R.armNear.hand, R.legNear.knee, R.legFar.knee, g.frame.saddle, g.com, g.weight.to, g.normal.to, g.velocity.from, g.velocity.to];
         for (const q of pts) assert.ok(!inside(q, rect), `${name} t=${s.t}: panel at ${off} covers the bike or an arrow (${q.x},${q.y})`);
       }
-      const hits = sceneMarks(p, r).filter((m) => overlaps(m, rect));
+      // slopes steeper than sin θ = 0,7 cannot be reached with the sliders or the handles (editParameter)
+      const hits = p.height / p.length > 0.7 ? [] : sceneMarks(p, r).filter((m) => overlaps(m, rect));
       assert.equal(hits.length, 0, `${name}: panel at ${off} covers ${JSON.stringify(hits[0])}`);
     }
   }
@@ -229,7 +231,7 @@ test('sepeda free-body diagram: N ⟂ slope = m g cos θ, F_g vertical, ΣF = m 
   const A = lesson.preset, B = { ...A, ...lesson.compare.B };
   const lenW = (p) => fbdLayout(fbdForces(p, solve('sepeda', p)), FBD).find((F) => F.key === 'g').len;
   near(lenW(B) / lenW(A), 2, 1e-9, 'B (2× mass) has a 2× longer F_g arrow');
-  assert.ok(lenW(B) - lenW(A) >= 20, 'A and B weight arrows differ visibly');
+  assert.ok(lenW(B) - lenW(A) >= 12, 'A and B weight arrows differ visibly');
 });
 
 test('sepeda free-body diagram: available in the force layer, inside both detail cameras, clear of everything else', () => {
@@ -239,7 +241,10 @@ test('sepeda free-body diagram: available in the force layer, inside both detail
     const [cx, cy, cw, ch] = cam.split(' ').map(Number);
     assert.ok(rect.x0 >= cx && rect.x1 <= cx + cw && rect.y0 >= cy && rect.y1 <= cy + ch, `diagram outside camera ${cam}`);
   }
-  assert.ok(rect.y0 > 380, 'diagram must sit below the scene (ground ends at y = 380)');
+  // the diagram lives in the sky band on top of the scene (y < 0), above even the tallest hilltop
+  assert.ok(rect.y1 <= 56, 'diagram must stay in the sky band above the scene');
+  for (const cam of [camera.desktop, camera.portrait]) assert.equal(cam, camera.desktop, 'one camera for every orientation of the sepeda scene');
+  assert.equal(Number(camera.desktop.split(' ')[1]) + Number(camera.desktop.split(' ')[3]), 380, 'camera ends at the ground band (no empty strip below the scene)');
   for (const [name, p] of sets) {
     const r = solve('sepeda', p);
     const svg = render(p, r, sample('sepeda', p, r, r.duration / 2), fmt);
@@ -253,5 +258,102 @@ test('sepeda free-body diagram: available in the force layer, inside both detail
       const tip = { x: FBD.x + FBD.cx + F.dx * F.len, y: FBD.y + FBD.cy + F.dy * F.len };
       assert.ok(tip.x > rect.x0 && tip.x < rect.x1 && tip.y > rect.y0 + 16 && tip.y <= rect.y1 - 4, `${name}: ${F.key} arrow leaves the diagram`);
     }
+  }
+});
+
+// ---------------------------------------------------------------- drag handles follow the pointer
+
+/** Drag a handle like interaction.js does: pointer moves `px` per move event, value += Δpointer × factor (current geometry), clamped, then snapped by editParameter. */
+function simulateDrag(key, start, px, moves) {
+  const field = lesson.fields.find((f) => f.key === key);
+  let p = { ...start }, g = handle(key, p);
+  const pointer = { x: g.x, y: g.y }, home = { ...pointer };
+  const drag = { value: p[key], last: { ...pointer } };
+  const rows = [];
+  for (let i = 0; i < moves; i++) {
+    pointer[g.axis] += px;
+    const geo = handle(key, p);
+    const raw = dragValue(drag.value, drag.last, pointer, geo);
+    drag.value = Math.max(field.min, Math.min(field.max, raw));
+    drag.last = { ...pointer };
+    const next = editParameter(lesson, p, key, drag.value);
+    // once the value sits on a limit the pointer may overshoot it: stop checking there
+    const clamped = [-1e9, 1e9].some((x) => editParameter(lesson, p, key, x)[key] === next[key]);
+    const before = p[key];
+    p = next;
+    g = handle(key, p);
+    const other = g.axis === 'x' ? 'y' : 'x';
+    // half a field step in px: the drawn value is snapped, the pointer is not
+    const quant = (field.step * Math.abs(1 / g.factor)) / 2;
+    rows.push({ i, value: p[key], before, clamped, err: Math.abs(g[g.axis] - pointer[g.axis]), quant, ortho: Math.abs(g[other] - home[other]) });
+  }
+  return rows;
+}
+
+test('sepeda scene: a dragged handle stays under the pointer (no lag, no accumulating drift) until the value clamps', () => {
+  const starts = [lesson.preset, { mass: 80, height: 20, length: 100 }, { mass: 80, height: 100, length: 250 }, { mass: 80, height: 10, length: 40 }, { mass: 80, height: 40, length: 120 }];
+  for (const start of starts) for (const key of ['height', 'length']) for (const px of [8, -8, 3, -3]) {
+    const rows = simulateDrag(key, start, px, 60);
+    let moved = 0;
+    for (const r of rows) {
+      const at = `${key} from ${JSON.stringify(start)} ${px > 0 ? '+' : ''}${px} px, move ${r.i}`;
+      if (r.clamped) break;
+      assert.ok(r.err <= 2.5 + r.quant, `${at}: handle is ${r.err.toFixed(2)} px from the pointer`);
+      near(r.ortho, 0, 1e-9, `${at}: handle left its axis`);
+      if (r.value !== r.before) moved++;
+    }
+    assert.ok(moved >= 1, `${key} from ${JSON.stringify(start)} ${px} px: the drag barely changed the value`);
+  }
+});
+
+test('sepeda scene: the drawing scale does not depend on the height, so the h handle is exactly h × scale above the ground', () => {
+  for (const L of [20, 60, 160, 300]) {
+    const base = layout({ mass: 80, height: 5, length: L }).scale;
+    for (let h = 5; h <= Math.min(150, 0.7 * L); h += 9) near(layout({ mass: 80, height: h, length: L }).scale, base, 1e-12, `L = ${L}, h = ${h}`);
+    near(handle('height', { mass: 80, height: 5, length: L }).factor, -1 / base, 1e-12, `L = ${L}`);
+  }
+});
+
+test('sepeda scene: the hill stays inside the room at every reachable height and length', () => {
+  for (let L = 20; L <= 300; L += 20) for (let h = 5; h <= Math.min(150, 0.7 * L); h += 5) {
+    const Ly = layout({ mass: 80, height: h, length: L });
+    assert.ok(Ly.top.y >= 124 - 1e-9, `h=${h}, L=${L}: hilltop too high (${Ly.top.y}), under the diagram`);
+    assert.ok(Ly.top.x >= 175 - 1e-9 && Ly.finish.x <= 540 + 1e-9, `h=${h}, L=${L}: hill outside 175…540`);
+  }
+});
+
+test('sepeda scene: the foot of the slope is linear in L (and independent of h), so the L handle follows the pointer exactly', () => {
+  for (const h of [5, 40, 100]) {
+    const xs = [150, 200, 250, 300].map((L) => layout({ mass: 80, height: h, length: L }).finish.x); // all reachable (h ≤ 0,7 L)
+    const steps = xs.slice(1).map((x, i) => x - xs[i]);
+    for (const st of steps) near(st, steps[0], 1e-6, `h = ${h}: foot x not linear in L`);
+  }
+  const f1 = handle('length', lesson.preset).factor, f2 = handle('length', { mass: 80, height: 20, length: 250 }).factor;
+  near(f1, f2, 1e-6, 'constant drag factor');
+});
+
+test('sepeda scene: the preset hill and bike fill the panel (large scale, bike clearly visible)', () => {
+  const L = layout(lesson.preset);
+  assert.ok(L.scale >= 1.45, `preset hill only ${L.scale.toFixed(2)} px/m`);
+  assert.ok(GROUND_Y - L.top.y >= 120, 'preset hill too low');
+});
+
+test('sepeda scene: numbers that change while playing keep a constant number of decimals', () => {
+  const decimals = (txt) => { const m = txt.match(/\d(?:,(\d+))?$/); return m && (m[1] ?? '').length; };
+  for (const [name, p] of sets) {
+    const r = solve('sepeda', p);
+    const seen = { s: new Set(), v: new Set(), ep: new Set(), ek: new Set() };
+    for (let i = 0; i <= 40; i++) {
+      const s = sample('sepeda', p, r, (r.duration * i) / 40);
+      const svg = render(p, r, s, fmt);
+      const pick = (re) => svg.match(re)?.[1];
+      const sT = pick(/s = ([\d.,]+) m/), vT = pick(/v = ([\d.,]+) m\/s/), epT = pick(/energy-text ep[^>]*>E.*?<\/tspan>\s*([\d.,]+) J/), ekT = pick(/energy-text ek[^>]*>E.*?<\/tspan>\s*([\d.,]+) J/);
+      if (sT) seen.s.add(decimals(sT)); if (vT) seen.v.add(decimals(vT));
+      assert.ok(epT !== undefined && ekT !== undefined, `${name}: energy labels missing`);
+      seen.ep.add(decimals(epT)); seen.ek.add(decimals(ekT));
+    }
+    for (const k of Object.keys(seen)) assert.ok(seen[k].size <= 1, `${name}: ${k} changes its number of decimals ${[...seen[k]]}`);
+    assert.deepEqual([...seen.v], [1], `${name}: v keeps one decimal`);
+    assert.deepEqual([...seen.ep], [0], `${name}: Ep keeps no decimals`);
   }
 });

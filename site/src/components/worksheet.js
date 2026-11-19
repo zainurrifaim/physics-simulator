@@ -30,6 +30,32 @@ const DIRECTIONS = {
 
 const kindOf = (key) => (key === 'v' ? 'velocity' : key === 's' ? 'disp' : 'force');
 
+const plainLabel = (html) => String(html).replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+/** Problems with one vector entry; an empty list means the vector is correct. */
+export function vectorProblems(v, entry = {}) {
+  const problems = [];
+  if (!entry.dir) problems.push('pilih arah');
+  else if (entry.dir !== v.correct) problems.push('arah belum tepat');
+  if (v.magnitude) {
+    const m = parseNumber(entry.mag);
+    if (!Number.isFinite(m)) problems.push('isi besar gaya');
+    else if (v.magnitudeMin) {
+      // The answer key says "F ≥ weight": any force at least that large is fine.
+      if (m < v.magnitude * 0.99) problems.push(v.minHint || 'gaya terlalu kecil, harus sama atau lebih besar dari gaya berat');
+    } else if (Math.abs(m - v.magnitude) > v.magnitude * 0.01) problems.push('besar belum tepat');
+  }
+  return problems;
+}
+
+/** Summary sentence listing the failing vectors, e.g. "Perlu diperbaiki: Gaya berat Fg (arah belum tepat)". */
+export function failingSummary(vectors, results) {
+  return vectors
+    .filter((v) => results[v.key]?.length)
+    .map((v) => `${plainLabel(v.label)} (${results[v.key].join(', ')})`)
+    .join('; ');
+}
+
 /** Check a numeric answer against the expected value (1 % tolerance). */
 export function checkAnswer(text, unit, expected) {
   const value = parseNumber(text);
@@ -52,9 +78,14 @@ export function mountWorksheet(root, lesson, draft) {
   const ws = lesson.worksheet;
   draft.vectors ??= {};
   draft.rubric ??= {};
-  const save = () => store.save();
+  const save = () => {
+    store.save();
+    const warn = root.querySelector('.storage-warning');
+    if (warn) warn.hidden = store.storageAvailable;
+  };
 
   root.innerHTML = `
+    <p class="storage-warning" role="status" ${store.storageAvailable ? 'hidden' : ''}>Penyimpanan browser tidak tersedia. Jawabanmu tidak akan tersimpan jika halaman ditutup.</p>
     <div class="worksheet-heading">
       <div><span class="eyebrow">DARI MENGAMATI KE MEMAHAMI · SOAL ASLI</span><h2>Lembar belajarmu</h2></div>
       <span class="saved-label">${store.storageAvailable ? 'Tersimpan otomatis di browser ini' : 'Penyimpanan browser tidak tersedia'}</span>
@@ -79,7 +110,7 @@ export function mountWorksheet(root, lesson, draft) {
           ${ws.vectors
             .map(
               (v) => `<fieldset class="vector-item" data-vector="${v.key}">
-                <legend><i class="key key-${kindOf(v.key)}"></i> ${v.label}</legend>
+                <legend><i class="key key-${kindOf(v.key)}"></i> <span class="vector-label">${v.label}</span></legend>
                 <div class="dir-row">${ws.directions
                   .map(
                     (d) => `<label class="dir"><input type="radio" name="dir-${v.key}" value="${d}" ${draft.vectors[v.key]?.dir === d ? 'checked' : ''}><span title="${DIRECTIONS[d].label}"><b aria-hidden="true">${DIRECTIONS[d].glyph}</b><span class="sr-only">${DIRECTIONS[d].label}</span></span></label>`
@@ -149,6 +180,15 @@ export function mountWorksheet(root, lesson, draft) {
     }
   }
 
+  if (draft.vectorResults) {
+    const failing = showVectorResults(draft.vectorResults, { jump: true });
+    const fb = $('#vector-feedback');
+    fb.textContent = failing
+      ? `Perlu diperbaiki: ${failing}.`
+      : 'Semua vektor tepat. Ingat: gaya, kecepatan, dan perpindahan adalah besaran yang berbeda walau arahnya bisa sama.';
+    fb.className = `feedback ${failing ? 'info' : 'good'}`;
+  }
+
   function drawPreview() {
     const svg = $('.vector-preview svg');
     const arrows = ws.vectors
@@ -170,35 +210,36 @@ export function mountWorksheet(root, lesson, draft) {
     svg.innerHTML = `<rect x="96" y="96" width="28" height="28" rx="5" class="preview-body"/>${arrows}`;
   }
 
-  function checkVectors() {
-    let allOk = true;
-    let anyEmpty = false;
+  function showVectorResults(results, { jump = false } = {}) {
     for (const v of ws.vectors) {
-      const entry = draft.vectors[v.key] || {};
+      const problems = results[v.key];
       const fb = root.querySelector(`[data-vector="${v.key}"] .vec-feedback`);
-      const problems = [];
-      if (!entry.dir) {
-        anyEmpty = true;
-        problems.push('pilih arah');
-      } else if (entry.dir !== v.correct) problems.push('arah belum tepat');
-      if (v.magnitude) {
-        const m = parseNumber(entry.mag);
-        if (!Number.isFinite(m)) problems.push('isi besar gaya');
-        else if (Math.abs(m - v.magnitude) > v.magnitude * 0.01) problems.push('besar belum tepat');
-      }
+      if (!problems) { fb.textContent = ''; fb.className = 'vec-feedback'; continue; }
       fb.textContent = problems.length ? `✗ ${problems.join(', ')}` : '✓ tepat';
       fb.className = `vec-feedback ${problems.length ? 'bad' : 'good'}`;
-      if (problems.length) allOk = false;
     }
+    const failing = failingSummary(ws.vectors, results);
+    if (jump && failing) {
+      vectorIndex = Math.max(0, ws.vectors.findIndex((v) => results[v.key]?.length));
+      showVector();
+    }
+    return failing;
+  }
+
+  function checkVectors() {
+    const results = {};
+    for (const v of ws.vectors) results[v.key] = vectorProblems(v, draft.vectors[v.key]);
+    const anyEmpty = ws.vectors.some((v) => !draft.vectors[v.key]?.dir);
+    const allOk = ws.vectors.every((v) => !results[v.key].length);
     draft.vectorsCorrect = allOk;
+    draft.vectorResults = results;
     save();
     blip(allOk ? 'ding' : 'soft');
+    const failing = showVectorResults(results, { jump: true });
     const fb = $('#vector-feedback');
     fb.textContent = allOk
       ? 'Semua vektor tepat. Ingat: gaya, kecepatan, dan perpindahan adalah besaran yang berbeda walau arahnya bisa sama.'
-      : anyEmpty
-        ? 'Lengkapi semua vektor terlebih dahulu.'
-        : 'Ada yang belum tepat. Bandingkan dengan diagram gaya dan vektor gerak di ruang eksperimen.';
+      : `${anyEmpty ? 'Lengkapi semua vektor terlebih dahulu. ' : ''}Perlu diperbaiki: ${failing}. Bandingkan dengan diagram gaya dan vektor gerak di ruang eksperimen.`;
     fb.className = `feedback ${allOk ? 'good' : 'info'}`;
   }
 
