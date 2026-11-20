@@ -26,7 +26,7 @@ export function renderHome(main) {
   main.innerHTML = `
     <section class="home-hero">
       <div class="hero-copy">
-        <h1>Simulasi usaha dan energi</h1>
+        <h1>Simulator usaha dan energi</h1>
         <p>Ubah beban, tinggi, atau kecepatan. Bandingkan gerak A dan B, lalu pelajari gaya dan energi yang menjelaskan hasilnya.</p>
         <div class="hero-actions">
           <a href="#sim/${lessons[0].id}" class="button primary">Mulai simulasi ${icon('arrow')}</a>
